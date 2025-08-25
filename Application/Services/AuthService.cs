@@ -4,9 +4,7 @@ using System.Text;
 using Application.DTOs;
 using Application.Interfaces;
 using AutoMapper;
-using BCrypt.Net;
 using Core.Entity;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -34,14 +32,25 @@ public class AuthService : IAuthService
 
     public async Task<string?> LoginAsync(string email, string password)
     {
-        // TODO: Dodanie hasowanego hasła
-        var user = await _userCredentialRepository.FindSingleAsync(x => x.Email == email && x.Password == password);
-        
-        if (user == null)
+        // Pobierz użytkownika po emailu
+        var user = await _userService.GetByEmailAsync(email);
+        if (user == null || !user.IsActive)
         {
             return null;
         }
-        var token = GenerateJwtToken(user.Id.ToString());
+        // Pobierz credentiale
+        var credential = await _userService.GetCredentialByUserIdAsync(user.Id);
+        if (credential == null)
+        {
+            return null;
+        }
+        // Weryfikacja hasła (BCrypt)
+        var passwordValid = BCrypt.Net.BCrypt.Verify(password, credential.PasswordHash);
+        if (!passwordValid)
+        {
+            return null;
+        }
+        var token = GenerateJwtToken(user.Id);
         return token;
     }
 
@@ -57,12 +66,12 @@ public class AuthService : IAuthService
         throw new NotImplementedException();
     }
     
-    [Authorize]
-    private string GenerateJwtToken(string userId)
+    private string GenerateJwtToken(int userId)
     {
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, userId)
+            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString())
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey!));

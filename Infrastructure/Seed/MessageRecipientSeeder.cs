@@ -20,13 +20,11 @@ public static class MessageRecipientSeeder
             {
                 MessageId = messages[0].Id,
                 UserId = users[1].Id,
-                Type = RecipientType.To
             },
             new MessageRecipient
             {
                 MessageId = messages[1].Id,
                 UserId = users[0].Id,
-                Type = RecipientType.To
             }
         };
 
