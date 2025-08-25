@@ -3,8 +3,8 @@ param(
     [string]$MigrationName
 )
 
-$infrastructurePath = "..\Infrastructure"
-$apiPath = "..\Api"
+$infrastructurePath = Join-Path $PSScriptRoot "..\Infrastructure"
+$apiPath = Join-Path $PSScriptRoot "..\Api"
 
 dotnet ef migrations add $MigrationName --project $infrastructurePath --startup-project $apiPath --output-dir Migrations
 Write-Host "Migracja '$MigrationName' została dodana pomyślnie."

@@ -1,5 +1,6 @@
 using Core.Entity;
 using Infrastructure.Persistence;
+using BCryptNet = BCrypt.Net.BCrypt;
 
 namespace Infrastructure.Seed;
 
@@ -12,18 +13,16 @@ public static class UserSeeder
 
         var users = new List<User>
         {
-            new User
+            new()
             {
-                Id = 0,
                 Email = "alice@example.com",
                 Name = "Alice",
                 Surname = "Smith",
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             },
-            new User
+            new()
             {
-                Id = 1,
                 Email = "bob@example.com",
                 Name = "Bob",
                 Surname = "Brown",
@@ -32,23 +31,22 @@ public static class UserSeeder
             }
         };
 
-        context.Users.AddRange(users);
+        await context.Users.AddRangeAsync(users);
         await context.SaveChangesAsync();
-        
-        var allUsers = context.Users.ToList();
-        foreach (var user in allUsers)
+
+        // Hasła testowe
+        var credentials = new List<UserCredential>();
+        foreach (var user in users)
         {
-            var credential = new UserCredential
+            credentials.Add(new UserCredential
             {
-                Id = user.Id,
                 UserId = user.Id,
-                Email = user.Email,
-                Password = "password" + user.Id
-            };
-            context.UserCredentials.Add(credential);
+                PasswordHash = BCryptNet.HashPassword("Password123!")
+            });
         }
-        
+        await context.UserCredentials.AddRangeAsync(credentials);
         await context.SaveChangesAsync();
-        return allUsers;
+
+        return users;
     }
 }

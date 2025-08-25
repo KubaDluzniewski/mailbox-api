@@ -7,12 +7,12 @@ namespace Infrastructure.Repositories;
 
 public class BaseRepository<TEntity> : IRepository<TEntity> where TEntity : class
 {
-    private readonly MailboxDbContext _context;
+    protected readonly MailboxDbContext Context; // zmieniono z private na protected
     private readonly DbSet<TEntity> _dbSet;
 
     public BaseRepository(MailboxDbContext context)
     {
-        _context = context;
+        Context = context;
         _dbSet = context.Set<TEntity>();
     }
 
@@ -29,7 +29,7 @@ public class BaseRepository<TEntity> : IRepository<TEntity> where TEntity : clas
     public async Task<List<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate)
         => await _dbSet.Where(predicate).ToListAsync();
 
-    public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+    public async Task SaveChangesAsync() => await Context.SaveChangesAsync();
 
     public Task<TEntity?> FindSingleAsync(Expression<Func<TEntity, bool>> predicate)
     {
