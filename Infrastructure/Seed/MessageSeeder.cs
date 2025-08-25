@@ -23,7 +23,6 @@ public static class MessageSeeder
                     new MessageRecipient
                     {
                         UserId = users[1].Id, // int
-                        Type = RecipientType.To
                     }
                 }
             },
@@ -38,7 +37,6 @@ public static class MessageSeeder
                     new MessageRecipient
                     {
                         UserId = users[0].Id, // int
-                        Type = RecipientType.To
                     }
                 }
             },
@@ -53,18 +51,8 @@ public static class MessageSeeder
                     new MessageRecipient
                     {
                         UserId = users[1].Id,
-                        Type = RecipientType.To
                     }
                 },
-                Attachments = new List<Attachment>
-                {
-                    new Attachment
-                    {
-                        FileName = "dokument.pdf",
-                        ContentType = "application/pdf",
-                        Data = new byte[] { 1, 2, 3, 4 } // przykładowe dane
-                    }
-                }
             },
             new Message
             {
@@ -77,7 +65,6 @@ public static class MessageSeeder
                     new MessageRecipient
                     {
                         UserId = users[0].Id,
-                        Type = RecipientType.To
                     }
                 }
             },
@@ -92,7 +79,6 @@ public static class MessageSeeder
                     new MessageRecipient
                     {
                         UserId = users[0].Id,
-                        Type = RecipientType.To
                     }
                 }
             }
