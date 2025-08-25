@@ -5,7 +5,6 @@ using Application.DTOs;
 using Application.Interfaces;
 using AutoMapper;
 using Core.Entity;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -29,10 +28,9 @@ public class AuthService : IAuthService
         _jwtIssuer = configuration["Jwt:Issuer"];
         _jwtAudience = configuration["Jwt:Audience"];
     }
-
+    
     public async Task<string?> LoginAsync(string email, string password)
     {
-        // Pobierz użytkownika po emailu
         var user = await _userService.GetByEmailAsync(email);
         if (user == null || !user.IsActive)
         {
