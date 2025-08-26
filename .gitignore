@@ -12,6 +12,7 @@ TestResults/
 
 wwwroot/lib/
 wwwroot/npm/
+Api/appsettings.Development.json
 
 *.db
 *.db-shm
