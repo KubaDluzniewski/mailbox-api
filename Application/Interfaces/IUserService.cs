@@ -30,4 +30,19 @@ public interface IUserService
     /// <param name="userId"></param>
     /// <returns></returns>
     Task<UserCredential?> GetCredentialByUserIdAsync(int userId);
+
+    /// <summary>
+    ///     Pobieranie użytkowników po liście Id
+    /// </summary>
+    /// <param name="ids"></param>
+    /// <returns></returns>
+    Task<List<User>> GetByIdsAsync(IEnumerable<int> ids);
+
+    /// <summary>
+    ///     Wyszukiwanie użytkowników po nazwisku
+    /// </summary>
+    /// <param name="term"></param>
+    /// <param name="limit"></param>
+    /// <returns></returns>
+    Task<List<User>> SearchBySurnameAsync(string term, int limit = 20);
 }
