@@ -4,7 +4,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/users")]
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -24,11 +24,16 @@ public class UserController : ControllerBase
             return NotFound();
         return Ok(_mapper.Map<UserDto>(user));
     }
-
+    
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetAllOrSearch([FromQuery] string? surname)
     {
-        var users = await _userService.GetAllAsync();
-        return Ok(users);
+        if (string.IsNullOrWhiteSpace(surname))
+        {
+            var all = await _userService.GetAllAsync();
+            return Ok(all.Select(u => _mapper.Map<UserDto>(u)));
+        }
+        var list = await _userService.SearchBySurnameAsync(surname, 20);
+        return Ok(list.Select(u => _mapper.Map<UserDto>(u)));
     }
 }

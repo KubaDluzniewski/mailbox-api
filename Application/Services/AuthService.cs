@@ -36,40 +36,34 @@ public class AuthService : IAuthService
         {
             return null;
         }
-        // Pobierz credentiale
         var credential = await _userService.GetCredentialByUserIdAsync(user.Id);
         if (credential == null)
         {
             return null;
         }
-        // Weryfikacja hasła (BCrypt)
         var passwordValid = BCrypt.Net.BCrypt.Verify(password, credential.PasswordHash);
         if (!passwordValid)
         {
             return null;
         }
-        var token = GenerateJwtToken(user.Id);
+        var token = GenerateJwtToken(user);
         return token;
     }
 
-    public Task LogoutAsync()
-    {
-        // Brak logiki wylogowania dla JWT
-        return Task.CompletedTask;
-    }
+    public Task LogoutAsync() => Task.CompletedTask;
 
     public Task<UserDto?> GetCurrentUserAsync()
     {
-        // TODO: Implementacja pobierania użytkownika z tokena
         throw new NotImplementedException();
     }
     
-    private string GenerateJwtToken(int userId)
+    private string GenerateJwtToken(User user)
     {
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email ?? string.Empty)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey!));
@@ -79,7 +73,7 @@ public class AuthService : IAuthService
             issuer: _jwtIssuer,
             audience: _jwtAudience,
             claims: claims,
-            expires: DateTime.Now.AddHours(1),
+            expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

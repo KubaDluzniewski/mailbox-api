@@ -12,6 +12,7 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
     public async Task<List<Message>> GetMessagesForUserAsync(int userId)
     {
         return await Context.Set<Message>()
+            .Include(m => m.Sender)
             .Include(m => m.Recipients)
             .Where(m => m.SenderId == userId || m.Recipients.Any(r => r.UserId == userId))
             .OrderByDescending(m => m.SentDate)
@@ -21,6 +22,8 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
     public async Task<List<Message>> GetMessagesSentByUserAsync(int userId)
     {
         return await Context.Set<Message>()
+            .Include(m => m.Recipients)
+            .Include(m => m.Sender)
             .Where(m => m.SenderId == userId)
             .OrderByDescending(m => m.SentDate)
             .ToListAsync();
