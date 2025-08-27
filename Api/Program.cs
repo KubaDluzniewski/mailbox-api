@@ -1,11 +1,7 @@
 using System.Text;
-using Amazon;
-using Amazon.Runtime;
-using Amazon.SimpleEmailV2;
-using Application.Interfaces;
-using Application.Services;
+using Application;
+using Infrastructure;
 using Infrastructure.Persistence;
-using Infrastructure.Repositories;
 using Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -13,62 +9,37 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-const string FrontendCorsPolicy = "Frontend";
+const string frontendCorsPolicy = "Frontend";
 
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = jwtSettings["Key"];
-var issuer = jwtSettings["Issuer"];
-var audience = jwtSettings["Audience"];
+
+builder.Services.AddApplication()
+                .AddInfrastructure(builder.Configuration);
+
 
 builder.Services.AddControllers().AddJsonOptions(o =>
 {
     o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
 });
 
-builder.Services.AddDbContext<MailboxDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IMessageService, MessageService>();
-builder.Services.AddScoped<IMessageRepository, MessageRepository>();
-
-// --- AWS SES konfiguracja ---
-var awsSection = builder.Configuration.GetSection("AWS");
-var regionName = awsSection["Region"] ?? "eu-central-1";
-var accessKey = awsSection["AccessKey"];
-var secretKey = awsSection["SecretKey"];
-
-builder.Services.AddSingleton<IAmazonSimpleEmailServiceV2>(_ =>
-{
-    var region = RegionEndpoint.GetBySystemName(regionName);
-
-    if (!string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey))
-    {
-        // DEV: jawne klucze (User Secrets / zmienne środowiskowe). Nie commitować.
-        return new AmazonSimpleEmailServiceV2Client(new BasicAWSCredentials(accessKey, secretKey), region);
-    }
-
-    // Fallback: domyślny łańcuch (ENV, profil ~/.aws/credentials, IMDS)
-    return new AmazonSimpleEmailServiceV2Client(region);
-});
-
-builder.Services.AddScoped<ISesEmailService, SesEmailService>();
-// --- koniec AWS SES ---
-
-builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+// CORS: odczyt originów z konfiguracji (Cors:Origins jako CSV)
+var corsOrigins = builder.Configuration.GetValue<string>("Cors:Origins") ?? "http://localhost:5173";
+var origins = corsOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(FrontendCorsPolicy, policy =>
+    options.AddPolicy(frontendCorsPolicy, policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
 });
+
+// JWT
+var jwt = builder.Configuration.GetSection("Jwt");
+var key = jwt["Key"]!;
+var issuer = jwt["Issuer"];
+var audience = jwt["Audience"];
 
 builder.Services.AddAuthentication(options =>
 {
@@ -84,12 +55,25 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = issuer,
         ValidAudience = audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key!))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
     };
 });
 
+// HealthChecks (basic)
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
+// Automatyczne migracje (prod-friendly)
+if (!args.Contains("seed"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<MailboxDbContext>();
+    await db.Database.EnsureCreatedAsync();
+    await db.Database.MigrateAsync();
+}
+
+// Seed na żądanie: dotnet run -- seed
 if (args.Contains("seed"))
 {
     using var scope = app.Services.CreateScope();
@@ -99,27 +83,10 @@ if (args.Contains("seed"))
     return;
 }
 
-if (app.Environment.IsDevelopment())
-{
-    try
-    {
-        using var scope = app.Services.CreateScope();
-        var ses = scope.ServiceProvider.GetRequiredService<IAmazonSimpleEmailServiceV2>();
-        // Lekki test (opcjonalny): await ses.ListEmailIdentitiesAsync(new());
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("AWS SES init error: " + ex.Message);
-    }
-
-    var testResult = System.Diagnostics.Process.Start("dotnet", "test ../Application.Tests");
-    testResult?.WaitForExit();
-    Console.WriteLine("Testy zostały uruchomione.");
-}
-
 app.UseHttpsRedirection();
-app.UseCors(FrontendCorsPolicy);
+app.UseCors(frontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.Run();
