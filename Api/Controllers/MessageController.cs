@@ -75,7 +75,7 @@ public class MessageController : ControllerBase
                     fromEmail,
                     user.Email!,
                     dto.Subject,
-                    dto.Body,
+                    dto.Body + "<br/><hr style=\"border:none; border-top:1px solid #e0e0e0; margin:20px 0;\">\n<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#666; width:100%;\">\n  <tr>\n    <td align=\"center\" style=\"padding-top:4px;\">\n      Wysłano przy użyciu aplikacji <strong style=\"color:#1a73e8;\">Mailbox</strong>\n    </td>\n  </tr>\n</table>",
                     cancellationToken
                 );
             }

@@ -16,7 +16,7 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
             .Include(m => m.Sender)
             .Include(m => m.Recipients)
                 .ThenInclude(r => r.User)
-            .Where(m => m.SenderId == userId || m.Recipients.Any(r => r.UserId == userId))
+            .Where(m => m.Recipients.Any(r => r.UserId == userId))
             .OrderByDescending(m => m.SentDate)
             .ToListAsync();
     }
