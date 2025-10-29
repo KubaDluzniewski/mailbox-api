@@ -18,6 +18,7 @@ Api/appsettings.Development.json
 *.db-shm
 *.db-wal
 # Migrations/  # odkomentuj, jeśli NIE chcesz trzymać migracji w repo
+GEMINI.md
 
 *.log
 logs/
