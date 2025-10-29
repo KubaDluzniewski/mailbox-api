@@ -5,7 +5,7 @@ namespace Application.Services;
 
 public class UserService : IUserService
 {
-    private readonly IUserRepository _userRepository; // changed type
+    private readonly IUserRepository _userRepository;
     private readonly IRepository<UserCredential> _userCredentialRepository;
 
     public UserService(IUserRepository userRepository, IRepository<UserCredential> userCredentialRepository)

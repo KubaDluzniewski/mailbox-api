@@ -7,7 +7,7 @@ namespace Infrastructure.Repositories;
 
 public class BaseRepository<TEntity> : IRepository<TEntity> where TEntity : class
 {
-    protected readonly MailboxDbContext Context; // zmieniono z private na protected
+    protected readonly MailboxDbContext Context;
     private readonly DbSet<TEntity> _dbSet;
 
     public BaseRepository(MailboxDbContext context)

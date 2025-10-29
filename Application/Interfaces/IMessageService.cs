@@ -1,4 +1,5 @@
-﻿using Core.Entity;
+﻿using Application.DTOs;
+using Core.Entity;
 
 namespace Application.Interfaces;
 
@@ -23,5 +24,14 @@ public interface IMessageService
     /// </summary>
     /// <param name="userId"></param>
     /// <returns></returns>
-    Task<List<Message>> GetMessagesSentByUserAsync(int userId); // nowa metoda
+    Task<List<Message>> GetMessagesSentByUserAsync(int userId);
+
+    /// <summary>
+    ///     Wysłanie wiadomości ses + baza 
+    /// </summary>
+    /// <param name="dto"></param>
+    /// <param name="senderId"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task<bool> SendMessages(SendMessageDto dto, int senderId, CancellationToken cancellationToken);
 }
