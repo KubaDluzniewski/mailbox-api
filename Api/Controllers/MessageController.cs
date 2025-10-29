@@ -38,54 +38,8 @@ public class MessageController : ControllerBase
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!int.TryParse(userIdStr, out var senderId)) return Unauthorized();
 
-        var fromEmail = User.FindFirst(ClaimTypes.Email)?.Value;
-        if (string.IsNullOrWhiteSpace(fromEmail))
-        {
-            var sender = await _userService.GetByIdAsync(senderId);
-            fromEmail = sender?.Email;
-        }
-        if (string.IsNullOrWhiteSpace(fromEmail))
-            return BadRequest("Brak zdefiniowanego adresu nadawcy dla użytkownika.");
-
-        var userDb = await _userService.GetByIdAsync(senderId);
-        var fromDisplayName = $"{userDb?.Name} {userDb?.Surname}".Trim();
-
-        var message = new Message
-        {
-            Subject = dto.Subject,
-            Body = dto.Body,
-            SenderId = senderId,
-            SentDate = DateTime.UtcNow,
-            Recipients = dto.Recipients
-                .Select(r => new MessageRecipient { UserId = r.UserId })
-                .ToList()
-        };
-
-        var recipientIds = dto.Recipients.Select(r => r.UserId);
-        var users = await _userService.GetByIdsAsync(recipientIds);
-
-        try
-        {
-            foreach (var user in users)
-            {
-                if (string.IsNullOrWhiteSpace(user.Email)) continue;
-
-                await _sesEmailService.SendEmailAsync(
-                    fromDisplayName,
-                    fromEmail,
-                    user.Email!,
-                    dto.Subject,
-                    dto.Body + "<br/><hr style=\"border:none; border-top:1px solid #e0e0e0; margin:20px 0;\">\n<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#666; width:100%;\">\n  <tr>\n    <td align=\"center\" style=\"padding-top:4px;\">\n      Wysłano przy użyciu aplikacji <strong style=\"color:#1a73e8;\">Mailbox</strong>\n    </td>\n  </tr>\n</table>",
-                    cancellationToken
-                );
-            }
-        }
-        catch
-        {
-            return StatusCode(502, "Wysyłka e‑maili przez SES nie powiodła się. Wiadomość nie została zapisana.");
-        }
-
-        await _messageService.SendMessageAsync(message);
+        var response = await _messageService.SendMessages(dto, senderId, cancellationToken);
+        if(!response) return StatusCode(500, "Nie udało się wysłać wiadomości");
         return Ok();
     }
     

@@ -1,4 +1,6 @@
-﻿namespace Application.DTOs;
+﻿using Core.Entity;
+
+namespace Application.DTOs;
 
 public class RecipientDto
 {

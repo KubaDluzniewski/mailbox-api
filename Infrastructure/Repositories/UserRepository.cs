@@ -13,7 +13,6 @@ public class UserRepository : BaseRepository<User>, IUserRepository
     {
         if (string.IsNullOrWhiteSpace(term)) return new List<User>();
         term = term.Trim();
-        // Npgsql: użyj ILike dla case-insensitive
         return await Context.Users
             .Where(u => EF.Functions.ILike(u.Surname, $"%{term}%"))
             .OrderBy(u => u.Surname)

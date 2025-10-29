@@ -12,6 +12,8 @@ public class MailboxDbContext : DbContext
     public DbSet<MessageRecipient> MessageRecipients { get; set; }
     public DbSet<UserCredential> UserCredentials { get; set; }
 
+    public DbSet<Group> Groups { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<MessageRecipient>()
@@ -25,7 +27,7 @@ public class MailboxDbContext : DbContext
             .WithMany(u => u.ReceivedMessages)
             .HasForeignKey(mr => mr.UserId)
             .OnDelete(DeleteBehavior.Cascade);
-        
+
         modelBuilder.Entity<User>()
             .HasOne(u => u.UserCredential)
             .WithOne(uc => uc.User)
@@ -37,7 +39,10 @@ public class MailboxDbContext : DbContext
             .WithMany(u => u.SentMessages)
             .HasForeignKey(m => m.SenderId)
             .OnDelete(DeleteBehavior.Restrict);
-        
+
+        modelBuilder.Entity<Group>()
+            .HasMany(u => u.Users);
+
 
         base.OnModelCreating(modelBuilder);
     }

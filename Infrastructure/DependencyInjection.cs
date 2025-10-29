@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IGroupRepository, GroupRepository>();
 
         // AWS SES client
         var awsSection = configuration.GetSection("AWS");
