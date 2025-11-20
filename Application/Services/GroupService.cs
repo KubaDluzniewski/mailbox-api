@@ -18,5 +18,15 @@ namespace Application.Services
         {
             return _groupRepository.GetAllUsersAsyncByGroup(id);
         }
+
+        public Task<List<Group>> SearchAsync(string term, int limit = 10)
+        {
+            return _groupRepository.SearchAsync(term, limit);
+        }
+
+        public Task<Group?> GetByIdAsync(int id)
+        {
+            return _groupRepository.GetByIdAsync(id);
+        }
     }
 }

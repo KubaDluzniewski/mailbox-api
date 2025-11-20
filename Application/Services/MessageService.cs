@@ -47,14 +47,15 @@ namespace Application.Services
             if (userDb == null)
                 return false;
 
+            var groupIds = dto.Recipients.Where(r => r.Type == "group").Select(r => r.Id).ToList();
             var groupUsers = new List<int>();
-            if (dto.GroupIds != null && dto.GroupIds.Any())
+            if (groupIds.Any())
             {
-                var groups = await _groupRepository.GetByIdsAsync(dto.GroupIds);
+                var groups = await _groupRepository.GetByIdsAsync(groupIds);
                 groupUsers = groups.SelectMany(g => g.Users.Select(u => u.Id)).ToList();
             }
 
-            var recipientIds = dto.Recipients.Select(r => r.UserId).Concat(groupUsers).Distinct().ToList();
+            var recipientIds = dto.Recipients.Where(r => r.Type == "user").Select(r => r.Id).Concat(groupUsers).Distinct().ToList();
 
             var message = new Message
             {

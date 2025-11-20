@@ -10,6 +10,7 @@ public static class DatabaseSeeder
         var users = await UserSeeder.SeedAsync(context);
         await MessageSeeder.SeedAsync(context, users);
         await MessageRecipientSeeder.SeedAsync(context, users);
+        await GroupSeeder.SeedAsync(context, users);
         // Opcjonalnie: dodatkowe seedery w przyszłości
     }
 }

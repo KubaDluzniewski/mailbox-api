@@ -45,4 +45,12 @@ public interface IUserService
     /// <param name="limit"></param>
     /// <returns></returns>
     Task<List<User>> SearchBySurnameAsync(string term, int limit = 20);
+
+    /// <summary>
+    ///     Wyszukiwanie użytkowników po imieniu, nazwisku lub emailu
+    /// </summary>
+    /// <param name="term"></param>
+    /// <param name="limit"></param>
+    /// <returns></returns>
+    Task<List<User>> SearchAsync(string term, int limit = 10);
 }

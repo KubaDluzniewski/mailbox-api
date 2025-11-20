@@ -8,5 +8,5 @@ public interface IGroupRepository : IRepository<Group>
 
     Task<List<User>> GetAllUsersAsyncByGroup(int id);
 
-
+    Task<List<Group>> SearchAsync(string term, int limit = 10);
 }
