@@ -20,5 +20,20 @@ public class UserRepository : BaseRepository<User>, IUserRepository
             .Take(limit)
             .ToListAsync();
     }
+
+    public Task<List<User>> SearchAsync(string term, int limit = 10)
+    {
+        if (string.IsNullOrWhiteSpace(term)) return Task.FromResult(new List<User>());
+        term = term.Trim();
+        return Context.Users
+            .Where(u =>
+                EF.Functions.ILike(u.Surname, $"%{term}%") ||
+                EF.Functions.ILike(u.Name, $"%{term}%") ||
+                EF.Functions.ILike(u.Email, $"%{term}%"))
+            .OrderBy(u => u.Surname)
+            .ThenBy(u => u.Name)
+            .Take(limit)
+            .ToListAsync();
+    }
 }
 

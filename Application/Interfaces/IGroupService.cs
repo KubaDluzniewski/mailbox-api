@@ -4,5 +4,7 @@ namespace Application.Interfaces;
 
 public interface IGroupService
 {
-    public Task<List<User>> GetUsersFromGroup(int id);
+    Task<List<User>> GetUsersFromGroup(int id);
+    Task<List<Group>> SearchAsync(string term, int limit = 10);
+    Task<Group?> GetByIdAsync(int id);
 }
