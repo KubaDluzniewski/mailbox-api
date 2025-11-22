@@ -6,7 +6,6 @@ using Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Api.Middleware;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 
@@ -71,7 +70,6 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-app.UseMiddleware<ErrorHandlingMiddleware>();
 
 // Automatyczne migracje (prod-friendly)
 if (!args.Contains("seed"))

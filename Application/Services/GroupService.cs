@@ -28,5 +28,10 @@ namespace Application.Services
         {
             return _groupRepository.GetByIdAsync(id);
         }
+
+        public Task<List<Group>> GetSuggestionsAsync(string term, int limit = 10)
+        {
+            return _groupRepository.SearchAsync(term, limit);
+        }
     }
 }

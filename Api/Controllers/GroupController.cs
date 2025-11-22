@@ -3,6 +3,8 @@ using Application.Interfaces;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 
+namespace Api.Controllers;
+
 [ApiController]
 [Route("api/groups")]
 public class GroupController : ControllerBase
@@ -16,25 +18,11 @@ public class GroupController : ControllerBase
         _mapper = mapper;
     }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetGroupDetails(int id)
+    [HttpGet("suggestions")]
+    public async Task<IActionResult> GetSuggestions([FromQuery] string name)
     {
-        var group = await _groupService.GetByIdAsync(id);
-        if (group == null)
-        {
-            return NotFound();
-        }
-
-        var users = await _groupService.GetUsersFromGroup(id);
-
-        var groupInfo = new GroupInfoDto
-        {
-            Id = group.Id,
-            Name = group.Name,
-            Members = _mapper.Map<List<UserDto>>(users),
-            MemberCount = users.Count
-        };
-
-        return Ok(groupInfo);
+        var groups = await _groupService.GetSuggestionsAsync(name);
+        var groupDtos = _mapper.Map<List<GroupDto>>(groups);
+        return Ok(groupDtos);
     }
 }
