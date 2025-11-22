@@ -25,15 +25,10 @@ public class UserController : ControllerBase
         return Ok(_mapper.Map<UserDto>(user));
     }
     
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<UserDto>>> GetAllOrSearch([FromQuery] string? surname)
+    [HttpGet("getSuggestion")]
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetAllOrSearch([FromQuery] string? name)
     {
-        if (string.IsNullOrWhiteSpace(surname))
-        {
-            var all = await _userService.GetAllAsync();
-            return Ok(all.Select(u => _mapper.Map<UserDto>(u)));
-        }
-        var list = await _userService.SearchBySurnameAsync(surname, 20);
+        var list = await _userService.SearchBySurnameAsync(name, 10);
         return Ok(list.Select(u => _mapper.Map<UserDto>(u)));
     }
 }

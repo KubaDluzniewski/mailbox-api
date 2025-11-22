@@ -12,10 +12,18 @@ public static class GroupSeeder
             new Group
             {
                 Name = "INF2025Z",
+                Users = new List<User>
+                {
+                    users[0], users[1]
+                }
             },
             new Group
             {
                 Name = "INF2022D",
+                Users = new List<User>
+                {
+                    users[1]
+                }
             }
         };
 
