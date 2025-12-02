@@ -7,5 +7,4 @@ public class SendMessageDto
     public string Subject { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
     public List<RecipientDto> Recipients { get; set; } = new();
-    public List<int> GroupIds { get; set; }
 }

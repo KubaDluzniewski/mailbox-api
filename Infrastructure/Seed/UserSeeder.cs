@@ -15,17 +15,17 @@ public static class UserSeeder
         {
             new()
             {
-                Email = "alice@example.com",
-                Name = "Alice",
-                Surname = "Smith",
+                Email = "kubadluzniewskix@gmail.com",
+                Name = "Kuba",
+                Surname = "Dłużniewski",
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             },
             new()
             {
-                Email = "bob@example.com",
-                Name = "Bob",
-                Surname = "Brown",
+                Email = "kubagierki123@gmail.com",
+                Name = "Jakub",
+                Surname = "Niedłużniewski",
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             }
