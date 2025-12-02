@@ -29,4 +29,6 @@ public class UserService : IUserService
     }
 
     public Task<List<User>> SearchBySurnameAsync(string term, int limit = 20) => _userRepository.SearchBySurnameAsync(term, limit);
+
+    public Task<List<User>> SearchAsync(string term, int limit = 10) => _userRepository.SearchAsync(term, limit);
 }

@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IMessageService, MessageService>();
         services.AddScoped<ISesEmailService, SesEmailService>();
+        services.AddScoped<IGroupService, GroupService>();
         services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
         return services;
     }
