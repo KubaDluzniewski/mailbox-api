@@ -34,7 +34,6 @@ public static class UserSeeder
         await context.Users.AddRangeAsync(users);
         await context.SaveChangesAsync();
 
-        // Hasła testowe
         var credentials = new List<UserCredential>();
         foreach (var user in users)
         {
