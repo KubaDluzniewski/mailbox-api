@@ -13,6 +13,7 @@ public class MailboxDbContext : DbContext
     public DbSet<UserCredential> UserCredentials { get; set; }
 
     public DbSet<Group> Groups { get; set; }
+    public DbSet<UserActivationToken> UserActivationTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
