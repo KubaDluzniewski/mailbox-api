@@ -64,4 +64,49 @@ public class MessageController : ControllerBase
         var dto = list.Select(m => _mapper.Map<MessageDto>(m)).ToList();
         return Ok(dto);
     }
+
+    [Authorize]
+    [HttpPost("draft")]
+    public async Task<IActionResult> SaveDraft([FromBody] SendMessageDto? dto, CancellationToken cancellationToken)
+    {
+        if (dto == null) return BadRequest("Brak danych.");
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdStr, out var senderId)) return Unauthorized();
+        var draft = await _messageService.SaveDraftAsync(dto, senderId, cancellationToken);
+        return Ok(_mapper.Map<MessageDto>(draft));
+    }
+
+    [Authorize]
+    [HttpGet("drafts")]
+    public async Task<IActionResult> GetDrafts()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null) return Unauthorized();
+        var list = await _messageService.GetDraftsForUserAsync(int.Parse(userId));
+        var dto = list.Select(m => _mapper.Map<MessageDto>(m)).ToList();
+        return Ok(dto);
+    }
+
+    [Authorize]
+    [HttpDelete("draft/{id}")]
+    public async Task<IActionResult> DeleteDraft(int id)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null) return Unauthorized();
+        var result = await _messageService.DeleteDraftAsync(id, int.Parse(userId));
+        if (!result) return NotFound();
+        return Ok();
+    }
+
+    [Authorize]
+    [HttpPut("draft/{id}")]
+    public async Task<IActionResult> UpdateDraft(int id, [FromBody] SendMessageDto? dto, CancellationToken cancellationToken)
+    {
+        if (dto == null) return BadRequest("Brak danych.");
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdStr, out var senderId)) return Unauthorized();
+        var draft = await _messageService.UpdateDraftAsync(id, dto, senderId, cancellationToken);
+        if (draft == null) return NotFound();
+        return Ok(_mapper.Map<MessageDto>(draft));
+    }
 }

@@ -34,4 +34,9 @@ public interface IMessageService
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     Task<bool> SendMessages(SendMessageDto dto, int senderId, CancellationToken cancellationToken);
+
+    Task<Message?> UpdateDraftAsync(int draftId, SendMessageDto dto, int senderId, CancellationToken cancellationToken);
+    Task<Message> SaveDraftAsync(SendMessageDto dto, int senderId, CancellationToken cancellationToken);
+    Task<List<Message>> GetDraftsForUserAsync(int userId);
+    Task<bool> DeleteDraftAsync(int draftId, int userId);
 }
