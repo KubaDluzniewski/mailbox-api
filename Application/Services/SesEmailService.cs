@@ -16,16 +16,14 @@ public class SesEmailService : ISesEmailService
         _logger = logger;
     }
 
-    public async Task SendEmailAsync(string name, string from, string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
+    public async Task SendEmailAsync(string name, string to, string subject, string htmlBody, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(from))
-            throw new ArgumentException("From address empty", nameof(from));
         if (string.IsNullOrWhiteSpace(to))
             throw new ArgumentException("To address empty", nameof(to));
 
         var request = new SendEmailRequest
         {
-            FromEmailAddress = $"{name} <{from}>",
+            FromEmailAddress = $"{name} <no-reply@kubadluzniewski.click>",
             Destination = new Destination { ToAddresses = new List<string> { to } },
             Content = new EmailContent
             {

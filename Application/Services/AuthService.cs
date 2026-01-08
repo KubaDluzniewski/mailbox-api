@@ -41,7 +41,7 @@ public class AuthService : IAuthService
         _jwtIssuer = configuration["Jwt:Issuer"];
         _jwtAudience = configuration["Jwt:Audience"];
     }
-    
+
     public async Task<string?> LoginAsync(string email, string password)
     {
         var user = await _userService.GetByEmailAsync(email);
@@ -104,7 +104,7 @@ public class AuthService : IAuthService
         var subject = "Potwierdzenie konta";
         var htmlBody = $"<p>Kliknij link, aby aktywować konto: <a href='{confirmationLink}'>Aktywuj konto</a></p>";
 
-        await _emailService.SendEmailAsync("Mailbox", "kubagierki123@gmail.com", email, subject, htmlBody);
+        await _emailService.SendEmailAsync("Mailbox", email, subject, htmlBody);
 
         return true;
     }
@@ -125,7 +125,7 @@ public class AuthService : IAuthService
         await _userActivationTokenRepository.SaveChangesAsync();
         return true;
     }
-    
+
     private string GenerateJwtToken(User user)
     {
         var claims = new[]

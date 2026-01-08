@@ -81,7 +81,6 @@ namespace Application.Services
 
                     await _sesEmailService.SendEmailAsync(
                         userDb.FullName(),
-                        userDb.Email,
                         user.Email!,
                         dto.Subject,
                         dto.Body + @"<br/><hr style=""border:none; border-top:1px solid #e0e0e0; margin:20px 0;"">
@@ -144,12 +143,12 @@ namespace Application.Services
                 groupUsers = groups.SelectMany(g => g.Users.Select(u => u.Id)).ToList();
             }
             var recipientIds = dto.Recipients.Where(r => r.Type == "user").Select(r => r.Id).Concat(groupUsers).Distinct().ToList();
-            
+
             foreach (var recipientId in recipientIds)
             {
                 draft.Recipients.Add(new MessageRecipient { UserId = recipientId, MessageId = draft.Id });
             }
-            
+
             await _messageRepository.SaveChangesAsync();
             return draft;
         }
