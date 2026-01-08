@@ -36,13 +36,14 @@ public class MessageController : ControllerBase
         if (dto.Recipients.Count == 0) return BadRequest("Brak odbiorców.");
 
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
         if (!int.TryParse(userIdStr, out var senderId)) return Unauthorized();
 
         var response = await _messageService.SendMessages(dto, senderId, cancellationToken);
         if(!response) return StatusCode(500, "Nie udało się wysłać wiadomości");
         return Ok();
     }
-    
+
     [Authorize]
     [HttpGet]
     public async Task<IActionResult> GetForCurrentUser()
