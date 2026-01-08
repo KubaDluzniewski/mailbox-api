@@ -47,6 +47,9 @@ namespace Application.Services
             if (userDb == null)
                 return false;
 
+            if (userDb.IsActive == false)
+                return false;
+
             var groupIds = dto.Recipients.Where(r => r.Type == "group").Select(r => r.Id).ToList();
             var groupUsers = new List<int>();
             if (groupIds.Any())
@@ -120,7 +123,8 @@ namespace Application.Services
                     Body = dto.Body,
                     SenderId = senderId,
                     IsDraft = true,
-                    Recipients = new List<MessageRecipient>()
+                    Recipients = new List<MessageRecipient>(),
+                    SentDate = DateTime.UtcNow
                 };
                 await _messageRepository.AddAsync(draft);
             }
@@ -129,6 +133,7 @@ namespace Application.Services
                 draft.Subject = dto.Subject;
                 draft.Body = dto.Body;
                 draft.Recipients.Clear();
+                await _messageRepository.SaveChangesAsync();
             }
             // Ustaw odbiorców
             var groupIds = dto.Recipients.Where(r => r.Type == "group").Select(r => r.Id).ToList();
@@ -139,7 +144,12 @@ namespace Application.Services
                 groupUsers = groups.SelectMany(g => g.Users.Select(u => u.Id)).ToList();
             }
             var recipientIds = dto.Recipients.Where(r => r.Type == "user").Select(r => r.Id).Concat(groupUsers).Distinct().ToList();
-            draft.Recipients = recipientIds.Select(r => new MessageRecipient { UserId = r }).ToList();
+            
+            foreach (var recipientId in recipientIds)
+            {
+                draft.Recipients.Add(new MessageRecipient { UserId = recipientId, MessageId = draft.Id });
+            }
+            
             await _messageRepository.SaveChangesAsync();
             return draft;
         }
