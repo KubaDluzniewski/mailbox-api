@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using Application.DTOs;
 using Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -27,9 +29,9 @@ public class AuthController : ControllerBase
     }
 
     [HttpPut("isActive")]
-    public async Task<IActionResult> IsActive([FromBody] ActivateDto dto)
+    public async Task<IActionResult> IsActive([FromQuery] string email)
     {
-        var isActive = await _authService.IsActiveAsync(dto.Email);
+        var isActive = await _authService.IsActiveAsync(email);
         return Ok(isActive);
     }
 
@@ -38,18 +40,46 @@ public class AuthController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(dto.Email))
             return BadRequest("Brak adresu email.");
-        var result = await _authService.ActivateAsync(dto.Email);
-        if (result)
-            return Ok("Email aktywacyjny został wysłany.");
-        return BadRequest("Błąd wysyłania emaila.");
+
+        try
+        {
+            var userId = GetCurrentUserId();
+            bool result;
+            if (dto.IsEmailChange)
+            {
+                if (!userId.HasValue) return Unauthorized("You must be logged in to change your email.");
+                result = await _authService.InitiateEmailChangeAsync(userId.Value, dto.Email);
+            }
+            else
+            {
+                result = await _authService.ActivateAsync(dto.Email);
+            }
+
+            if (result)
+                return Ok("Email aktywacyjny/zmieniający adres został wysłany.");
+        
+            return BadRequest("Błąd wysyłania emaila.");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPost("confirm")]
     public async Task<IActionResult> Confirm([FromBody] ConfirmDto dto)
     {
         var result = await _authService.ConfirmAsync(dto.Email, dto.Token);
-        if (result)
-            return Ok("Konto zostało aktywowane.");
-        return BadRequest("Błąd aktywacji.");
+        if (result != null)
+            return Ok(new { message = "Success", type = result });
+        return BadRequest("Błąd aktywacji/zmiany emaila.");
+    }
+    
+    private int? GetCurrentUserId()
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (int.TryParse(userIdStr, out var userId))
+            return userId;
+        return null;
     }
 }

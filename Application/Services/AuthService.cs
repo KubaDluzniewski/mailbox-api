@@ -45,20 +45,14 @@ public class AuthService : IAuthService
     public async Task<string?> LoginAsync(string email, string password)
     {
         var user = await _userService.GetByEmailAsync(email);
-        if (user == null)
-        {
-            return null;
-        }
+        if (user == null) return null;
+        
         var credential = await _userService.GetCredentialByUserIdAsync(user.Id);
-        if (credential == null)
-        {
-            return null;
-        }
+        if (credential == null) return null;
+        
         var passwordValid = BCrypt.Net.BCrypt.Verify(password, credential.PasswordHash);
-        if (!passwordValid)
-        {
-            return null;
-        }
+        if (!passwordValid) return null;
+        
         var token = GenerateJwtToken(user);
         Console.WriteLine($"Generated token for user: {user.Id}, {user.Name}, {user.Surname}, {user.Email}, {user.IsActive}");
         return token;
@@ -82,7 +76,6 @@ public class AuthService : IAuthService
         var user = await _userService.GetByEmailAsync(email);
         if (user == null || user.IsActive) return false;
 
-        // Usuń stare tokeny aktywacyjne
         var oldTokens = await _userActivationTokenRepository.GetByUserIdAsync(user.Id, "activation");
         foreach (var t in oldTokens)
             _userActivationTokenRepository.Remove(t);
@@ -100,30 +93,88 @@ public class AuthService : IAuthService
         await _userActivationTokenRepository.SaveChangesAsync();
 
         var confirmationLink = $"http://localhost:5173/confirm?token={activationToken}&email={email}";
-
         var subject = "Potwierdzenie konta";
         var htmlBody = $"<p>Kliknij link, aby aktywować konto: <a href='{confirmationLink}'>Aktywuj konto</a></p>";
-
         await _emailService.SendEmailAsync("Mailbox", email, subject, htmlBody);
+        return true;
+    }
+    
+    public async Task<bool> InitiateEmailChangeAsync(int userId, string newEmail)
+    {
+        var user = await _userService.GetByIdAsync(userId);
+        if (user == null) return false;
 
+        if (user.Email == newEmail)
+        {
+            if (!user.IsActive)
+            {
+                return await ActivateAsync(newEmail);
+            }
+            throw new Exception("This is already your email address.");
+        }
+
+        var existingUser = await _userService.GetByEmailAsync(newEmail);
+        if (existingUser != null)
+        {
+            throw new Exception("Email is already taken.");
+        }
+
+        var oldTokens = await _userActivationTokenRepository.GetByUserIdAsync(userId, "email_change");
+        foreach (var t in oldTokens)
+            _userActivationTokenRepository.Remove(t);
+
+        var token = Guid.NewGuid().ToString();
+        var tokenEntity = new UserActivationToken
+        {
+            UserId = userId,
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddHours(1),
+            Type = "email_change",
+            NewEmail = newEmail
+        };
+        await _userActivationTokenRepository.AddAsync(tokenEntity);
+        await _userActivationTokenRepository.SaveChangesAsync();
+
+        var confirmationLink = $"http://localhost:5173/confirm?token={token}&email={newEmail}";
+        var subject = "Potwierdź zmianę adresu email";
+        var htmlBody = $"<p>Kliknij link, aby potwierdzić zmianę adresu email: <a href='{confirmationLink}'>Zmień email</a></p>";
+        
+        await _emailService.SendEmailAsync("Mailbox", newEmail, subject, htmlBody);
         return true;
     }
 
-    public async Task<bool> ConfirmAsync(string email, string token)
+    public async Task<string?> ConfirmAsync(string email, string token)
     {
-        var user = await _userService.GetByEmailAsync(email);
-        if (user == null || user.IsActive) return false;
+        var tokenEntity = await _userActivationTokenRepository.GetByTokenAsync(token);
+        if (tokenEntity == null || tokenEntity.ExpiresAt < DateTime.UtcNow)
+            return null;
 
-        var tokenEntity = await _userActivationTokenRepository.GetByTokenAsync(token, "activation");
-        if (tokenEntity == null || tokenEntity.UserId != user.Id || tokenEntity.ExpiresAt < DateTime.UtcNow)
-            return false;
+        var user = await _userService.GetByIdAsync(tokenEntity.UserId);
+        if (user == null) return null;
 
-        user.IsActive = true;
-        _userRepository.Update(user);
+        string confirmationType = tokenEntity.Type;
+
+        if (confirmationType == "activation")
+        {
+            if (user.Email != email || user.IsActive) return null;
+            user.IsActive = true;
+            _userRepository.Update(user);
+        }
+        else if (confirmationType == "email_change")
+        {
+            if (tokenEntity.NewEmail != email) return null;
+            user.Email = tokenEntity.NewEmail;
+            _userRepository.Update(user);
+        }
+        else
+        {
+            return null;
+        }
+
         _userActivationTokenRepository.Remove(tokenEntity);
         await _userRepository.SaveChangesAsync();
         await _userActivationTokenRepository.SaveChangesAsync();
-        return true;
+        return confirmationType;
     }
 
     private string GenerateJwtToken(User user)

@@ -23,12 +23,6 @@ public class MailboxDbContext : DbContext
             .HasForeignKey(mr => mr.MessageId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<MessageRecipient>()
-            .HasOne(mr => mr.User)
-            .WithMany(u => u.ReceivedMessages)
-            .HasForeignKey(mr => mr.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         modelBuilder.Entity<User>()
             .HasOne(u => u.UserCredential)
             .WithOne(uc => uc.User)

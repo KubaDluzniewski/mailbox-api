@@ -1,11 +1,14 @@
 namespace Core.Entity;
 
-/// Powiązanie między wiadomością a odbiorcą, wraz z typem odbiorcy.
+/// <summary>
+/// Represents the link between a message and a recipient, which can be a user or a group.
+/// </summary>
 public class MessageRecipient
 {
     public int Id { get; set; }
     public int MessageId { get; set; }
-    public int UserId { get; set; }
-    public Message? Message { get; set; }
-    public User? User { get; set; }
+    public int RecipientEntityId { get; set; }
+    public RecipientType RecipientType { get; set; }
+
+    public virtual Message? Message { get; set; }
 }

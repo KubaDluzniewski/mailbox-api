@@ -15,5 +15,6 @@ public interface IAuthService
     Task<UserDto?> GetCurrentUserAsync();
     Task<bool> IsActiveAsync(string email);
     Task<bool> ActivateAsync(string email);
-    Task<bool> ConfirmAsync(string email, string token);
+    Task<string?> ConfirmAsync(string email, string token);
+    Task<bool> InitiateEmailChangeAsync(int userId, string newEmail);
 }

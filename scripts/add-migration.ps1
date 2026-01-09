@@ -10,5 +10,5 @@ dotnet ef migrations add $MigrationName --project $infrastructurePath --startup-
 Write-Host "Migracja '$MigrationName' została dodana pomyślnie."
 dotnet ef database update --project $infrastructurePath --startup-project $apiPath
 Write-Host "Migracja bazy danych została zaktualizowana do najnowszej wersji."
-dotnet run --project $apiPath -- seed
+dotnet run --project $apiPath
 Write-Host "Baza danych została pomyślnie zainicjowana danymi."
