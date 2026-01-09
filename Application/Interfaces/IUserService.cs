@@ -10,7 +10,7 @@ public interface IUserService
     /// <param name="id"></param>
     /// <returns></returns>
     Task<User?> GetByIdAsync(int id);
-    
+
     /// <summary>
     ///     Pobieranie wszystkich użytkowników
     /// </summary>
@@ -53,4 +53,22 @@ public interface IUserService
     /// <param name="limit"></param>
     /// <returns></returns>
     Task<List<User>> SearchAsync(string term, int limit = 10);
+
+    /// <summary>
+    ///     Zmiana hasła użytkownika
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <param name="oldPassword"></param>
+    /// <param name="newPassword"></param>
+    /// <returns></returns>
+    Task<bool> ChangePasswordAsync(int userId, string oldPassword, string newPassword);
+
+    /// <summary>
+    ///     Zmiana adresu e-mail użytkownika
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <param name="newEmail"></param>
+    /// <param name="currentPassword"></param>
+    /// <returns></returns>
+    Task<bool> ChangeEmailAsync(int userId, string newEmail, string currentPassword);
 }

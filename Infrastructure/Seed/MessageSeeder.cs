@@ -22,7 +22,8 @@ public static class MessageSeeder
                 {
                     new MessageRecipient
                     {
-                        UserId = users[1].Id, // int
+                        RecipientEntityId = users[1].Id,
+                        RecipientType = RecipientType.User
                     }
                 }
             },
@@ -36,7 +37,8 @@ public static class MessageSeeder
                 {
                     new MessageRecipient
                     {
-                        UserId = users[0].Id, // int
+                        RecipientEntityId = users[0].Id,
+                        RecipientType = RecipientType.User
                     }
                 }
             },
@@ -50,7 +52,8 @@ public static class MessageSeeder
                 {
                     new MessageRecipient
                     {
-                        UserId = users[1].Id,
+                        RecipientEntityId = users[1].Id,
+                        RecipientType = RecipientType.User
                     }
                 },
             },
@@ -64,7 +67,8 @@ public static class MessageSeeder
                 {
                     new MessageRecipient
                     {
-                        UserId = users[0].Id,
+                        RecipientEntityId = users[0].Id,
+                        RecipientType = RecipientType.User
                     }
                 }
             },
@@ -78,7 +82,8 @@ public static class MessageSeeder
                 {
                     new MessageRecipient
                     {
-                        UserId = users[0].Id,
+                        RecipientEntityId = users[0].Id,
+                        RecipientType = RecipientType.User
                     }
                 }
             }

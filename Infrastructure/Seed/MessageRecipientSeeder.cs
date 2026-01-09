@@ -19,12 +19,14 @@ public static class MessageRecipientSeeder
             new MessageRecipient
             {
                 MessageId = messages[0].Id,
-                UserId = users[1].Id,
+                RecipientEntityId = users[1].Id,
+                RecipientType = RecipientType.User
             },
             new MessageRecipient
             {
                 MessageId = messages[1].Id,
-                UserId = users[0].Id,
+                RecipientEntityId = users[0].Id,
+                RecipientType = RecipientType.User
             }
         };
 

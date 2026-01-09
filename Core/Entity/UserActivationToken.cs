@@ -9,6 +9,5 @@ public class UserActivationToken
     public string Token { get; set; } = string.Empty;
     public DateTime ExpiresAt { get; set; }
     public string Type { get; set; } = "activation"; // np. activation, reset, change-email
-
-    public virtual User User { get; set; } = null!;
+    public string? NewEmail { get; set; }
 }

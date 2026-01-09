@@ -44,10 +44,7 @@ namespace Application.Services
         public async Task<bool> SendMessages(SendMessageDto dto, int senderId, CancellationToken cancellationToken)
         {
             var userDb = await _userService.GetByIdAsync(senderId);
-            if (userDb == null)
-                return false;
-
-            if (userDb.IsActive == false)
+            if (userDb == null || !userDb.IsActive)
                 return false;
 
             var groupIds = dto.Recipients.Where(r => r.Type == "group").Select(r => r.Id).ToList();
@@ -58,20 +55,10 @@ namespace Application.Services
                 groupUsers = groups.SelectMany(g => g.Users.Select(u => u.Id)).ToList();
             }
 
-            var recipientIds = dto.Recipients.Where(r => r.Type == "user").Select(r => r.Id).Concat(groupUsers).Distinct().ToList();
+            var userIds = dto.Recipients.Where(r => r.Type == "user").Select(r => r.Id).ToList();
+            var allRecipientUserIds = userIds.Concat(groupUsers).Distinct().ToList();
 
-            var message = new Message
-            {
-                Subject = dto.Subject,
-                Body = dto.Body,
-                SenderId = senderId,
-                SentDate = DateTime.UtcNow,
-                Recipients = recipientIds
-                    .Select(r => new MessageRecipient { UserId = r })
-                    .ToList()
-            };
-
-            var users = await _userService.GetByIdsAsync(recipientIds);
+            var users = await _userService.GetByIdsAsync(allRecipientUserIds);
 
             try
             {
@@ -100,62 +87,53 @@ namespace Application.Services
                 return false;
             }
 
-            await SendMessageAsync(message);
+            var message = new Message
+            {
+                Subject = dto.Subject,
+                Body = dto.Body,
+                SenderId = senderId,
+                SentDate = DateTime.UtcNow,
+                Recipients = allRecipientUserIds.Select(id => new MessageRecipient { RecipientEntityId = id, RecipientType = RecipientType.User }).ToList()
+            };
+            await _messageRepository.AddAsync(message);
+            await _messageRepository.SaveChangesAsync();
+
+            if (dto.Id.HasValue)
+            {
+                await DeleteDraftAsync(dto.Id.Value, senderId);
+            }
+
             return true;
         }
 
-            public async Task<Message> SaveDraftAsync(SendMessageDto dto, int senderId, CancellationToken cancellationToken)
+        public async Task<Message> SaveDraftAsync(SendMessageDto dto, int senderId, CancellationToken cancellationToken)
         {
-            // Jeśli dto zawiera Id istniejącego drafta, aktualizuj go
-            Message? draft = null;
-            if (dto.Id.HasValue)
+            var draft = new Message
             {
-                draft = await _messageRepository.GetByIdAsync(dto.Id.Value);
-                if (draft == null || !draft.IsDraft || draft.SenderId != senderId)
-                    draft = null;
-            }
-            if (draft == null)
-            {
-                draft = new Message
-                {
-                    Subject = dto.Subject,
-                    Body = dto.Body,
-                    SenderId = senderId,
-                    IsDraft = true,
-                    Recipients = new List<MessageRecipient>(),
-                    SentDate = DateTime.UtcNow
-                };
-                await _messageRepository.AddAsync(draft);
-            }
-            else
-            {
-                draft.Subject = dto.Subject;
-                draft.Body = dto.Body;
-                draft.Recipients.Clear();
-                await _messageRepository.SaveChangesAsync();
-            }
-            // Ustaw odbiorców
-            var groupIds = dto.Recipients.Where(r => r.Type == "group").Select(r => r.Id).ToList();
-            var groupUsers = new List<int>();
-            if (groupIds.Any())
-            {
-                var groups = await _groupRepository.GetByIdsAsync(groupIds);
-                groupUsers = groups.SelectMany(g => g.Users.Select(u => u.Id)).ToList();
-            }
-            var recipientIds = dto.Recipients.Where(r => r.Type == "user").Select(r => r.Id).Concat(groupUsers).Distinct().ToList();
+                SenderId = senderId,
+                IsDraft = true,
+                Subject = dto.Subject,
+                Body = dto.Body,
+                SentDate = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            };
 
-            foreach (var recipientId in recipientIds)
+            var recipients = dto.Recipients.Select(r => new MessageRecipient
             {
-                draft.Recipients.Add(new MessageRecipient { UserId = recipientId, MessageId = draft.Id });
-            }
+                RecipientEntityId = r.Id,
+                RecipientType = r.Type == "group" ? RecipientType.Group : RecipientType.User
+            }).ToList();
 
+            draft.Recipients = recipients;
+
+            await _messageRepository.AddAsync(draft);
             await _messageRepository.SaveChangesAsync();
             return draft;
         }
 
         public async Task<List<Message>> GetDraftsForUserAsync(int userId)
         {
-            return await _messageRepository.FindAsync(m => m.SenderId == userId && m.IsDraft);
+            return await _messageRepository.GetDraftsForUserWithRecipientsAsync(userId);
         }
 
         public async Task<bool> DeleteDraftAsync(int draftId, int userId)
@@ -170,22 +148,24 @@ namespace Application.Services
 
         public async Task<Message?> UpdateDraftAsync(int draftId, SendMessageDto dto, int senderId, CancellationToken cancellationToken)
         {
-            var draft = await _messageRepository.GetByIdAsync(draftId);
+            var draft = await _messageRepository.GetDraftWithRecipientsAsync(draftId);
             if (draft == null || !draft.IsDraft || draft.SenderId != senderId)
                 return null;
+
             draft.Subject = dto.Subject;
             draft.Body = dto.Body;
-            draft.Recipients.Clear();
+            draft.SentDate = DateTime.UtcNow;
+            if (draft.CreatedAt == default)
+                draft.CreatedAt = DateTime.UtcNow;
 
-            var groupIds = dto.Recipients.Where(r => r.Type == "group").Select(r => r.Id).ToList();
-            var groupUsers = new List<int>();
-            if (groupIds.Any())
+            var recipients = dto.Recipients.Select(r => new MessageRecipient
             {
-                var groups = await _groupRepository.GetByIdsAsync(groupIds);
-                groupUsers = groups.SelectMany(g => g.Users.Select(u => u.Id)).ToList();
-            }
-            var recipientIds = dto.Recipients.Where(r => r.Type == "user").Select(r => r.Id).Concat(groupUsers).Distinct().ToList();
-            draft.Recipients = recipientIds.Select(r => new MessageRecipient { UserId = r }).ToList();
+                RecipientEntityId = r.Id,
+                RecipientType = r.Type == "group" ? RecipientType.Group : RecipientType.User
+            }).ToList();
+
+            draft.Recipients = recipients;
+
             await _messageRepository.SaveChangesAsync();
             return draft;
         }

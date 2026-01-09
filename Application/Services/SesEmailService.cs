@@ -23,7 +23,7 @@ public class SesEmailService : ISesEmailService
 
         var request = new SendEmailRequest
         {
-            FromEmailAddress = $"{name} <no-reply@kubadluzniewski.click>",
+            FromEmailAddress = $"Mailbox <no-reply@kubadluzniewski.click>",
             Destination = new Destination { ToAddresses = new List<string> { to } },
             Content = new EmailContent
             {
