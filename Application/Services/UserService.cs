@@ -65,4 +65,98 @@ public class UserService : IUserService
         await _userCredentialRepository.SaveChangesAsync();
         return true;
     }
+
+    public async Task<User?> CreateUserAsync(string name, string surname, string email, string password, UserRole role, bool isActive = true)
+    {
+        // Check if user with this email already exists
+        var existingUser = await _userRepository.FindSingleAsync(u => u.Email == email);
+        if (existingUser != null) return null;
+
+        var user = new User
+        {
+            Name = name,
+            Surname = surname,
+            Email = email,
+            IsActive = isActive,
+            Role = role,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _userRepository.AddAsync(user);
+        await _userRepository.SaveChangesAsync();
+
+        // Create credentials
+        var credential = new UserCredential
+        {
+            UserId = user.Id,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
+        };
+
+        await _userCredentialRepository.AddAsync(credential);
+        await _userCredentialRepository.SaveChangesAsync();
+
+        return user;
+    }
+
+    public async Task<User?> UpdateUserAsync(int userId, string? name, string? surname, string? email, UserRole? role, bool? isActive)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null) return null;
+
+        if (!string.IsNullOrWhiteSpace(name))
+            user.Name = name;
+
+        if (!string.IsNullOrWhiteSpace(surname))
+            user.Surname = surname;
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            // Check if email is already taken by another user
+            var existingUser = await _userRepository.FindSingleAsync(u => u.Email == email && u.Id != userId);
+            if (existingUser != null) return null;
+            user.Email = email;
+        }
+
+        if (role.HasValue)
+            user.Role = role.Value;
+
+        if (isActive.HasValue)
+            user.IsActive = isActive.Value;
+
+        _userRepository.Update(user);
+        await _userRepository.SaveChangesAsync();
+
+        return user;
+    }
+
+    public async Task<bool> DeleteUserAsync(int userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        // Delete credentials first
+        var credential = await _userCredentialRepository.FindSingleAsync(c => c.UserId == userId);
+        if (credential != null)
+        {
+            _userCredentialRepository.Remove(credential);
+            await _userCredentialRepository.SaveChangesAsync();
+        }
+
+        _userRepository.Remove(user);
+        await _userRepository.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<bool> ToggleUserStatusAsync(int userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        user.IsActive = !user.IsActive;
+        _userRepository.Update(user);
+        await _userRepository.SaveChangesAsync();
+
+        return true;
+    }
 }

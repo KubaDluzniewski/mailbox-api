@@ -169,5 +169,25 @@ namespace Application.Services
             await _messageRepository.SaveChangesAsync();
             return draft;
         }
+
+        public async Task<bool> MarkAsReadAsync(int messageId, int userId)
+        {
+            return await _messageRepository.MarkAsReadAsync(messageId, userId);
+        }
+
+        public async Task<bool> MarkAsUnreadAsync(int messageId, int userId)
+        {
+            return await _messageRepository.MarkAsUnreadAsync(messageId, userId);
+        }
+
+        public async Task<int> GetUnreadCountAsync(int userId)
+        {
+            return await _messageRepository.GetUnreadCountForUserAsync(userId);
+        }
+
+        public async Task<List<Message>> GetAllBroadcastMessagesAsync()
+        {
+            return await _messageRepository.GetAllBroadcastMessagesAsync();
+        }
     }
 }

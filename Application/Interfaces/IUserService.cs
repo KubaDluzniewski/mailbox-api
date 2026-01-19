@@ -71,4 +71,42 @@ public interface IUserService
     /// <param name="currentPassword"></param>
     /// <returns></returns>
     Task<bool> ChangeEmailAsync(int userId, string newEmail, string currentPassword);
+
+    /// <summary>
+    ///     Tworzenie nowego użytkownika (admin)
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="surname"></param>
+    /// <param name="email"></param>
+    /// <param name="password"></param>
+    /// <param name="role"></param>
+    /// <param name="isActive"></param>
+    /// <returns></returns>
+    Task<User?> CreateUserAsync(string name, string surname, string email, string password, UserRole role, bool isActive = true);
+
+    /// <summary>
+    ///     Aktualizacja użytkownika (admin)
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <param name="name"></param>
+    /// <param name="surname"></param>
+    /// <param name="email"></param>
+    /// <param name="role"></param>
+    /// <param name="isActive"></param>
+    /// <returns></returns>
+    Task<User?> UpdateUserAsync(int userId, string? name, string? surname, string? email, UserRole? role, bool? isActive);
+
+    /// <summary>
+    ///     Usuwanie użytkownika (admin)
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<bool> DeleteUserAsync(int userId);
+
+    /// <summary>
+    ///     Przełączanie statusu aktywności użytkownika (admin)
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<bool> ToggleUserStatusAsync(int userId);
 }

@@ -46,13 +46,13 @@ public class AuthService : IAuthService
     {
         var user = await _userService.GetByEmailAsync(email);
         if (user == null) return null;
-        
+
         var credential = await _userService.GetCredentialByUserIdAsync(user.Id);
         if (credential == null) return null;
-        
+
         var passwordValid = BCrypt.Net.BCrypt.Verify(password, credential.PasswordHash);
         if (!passwordValid) return null;
-        
+
         var token = GenerateJwtToken(user);
         Console.WriteLine($"Generated token for user: {user.Id}, {user.Name}, {user.Surname}, {user.Email}, {user.IsActive}");
         return token;
@@ -98,7 +98,7 @@ public class AuthService : IAuthService
         await _emailService.SendEmailAsync("Mailbox", email, subject, htmlBody);
         return true;
     }
-    
+
     public async Task<bool> InitiateEmailChangeAsync(int userId, string newEmail)
     {
         var user = await _userService.GetByIdAsync(userId);
@@ -138,7 +138,7 @@ public class AuthService : IAuthService
         var confirmationLink = $"http://localhost:5173/confirm?token={token}&email={newEmail}";
         var subject = "Potwierdź zmianę adresu email";
         var htmlBody = $"<p>Kliknij link, aby potwierdzić zmianę adresu email: <a href='{confirmationLink}'>Zmień email</a></p>";
-        
+
         await _emailService.SendEmailAsync("Mailbox", newEmail, subject, htmlBody);
         return true;
     }
@@ -186,7 +186,8 @@ public class AuthService : IAuthService
             new Claim("email", user.Email ?? string.Empty),
             new Claim("name", user.Name ?? string.Empty),
             new Claim("surname", user.Surname ?? string.Empty),
-            new Claim("isActive", user.IsActive.ToString())
+            new Claim("isActive", user.IsActive.ToString()),
+            new Claim("role", user.Role.ToString())
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey!));

@@ -19,7 +19,8 @@ public static class UserSeeder
                 Name = "Kuba",
                 Surname = "Dłużniewski",
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true
+                IsActive = true,
+                Role = UserRole.ADMIN
             },
             new()
             {
@@ -27,7 +28,8 @@ public static class UserSeeder
                 Name = "Jakub",
                 Surname = "Niedłużniewski",
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true
+                IsActive = true,
+                Role = UserRole.LECTURER
             }
         };
 
