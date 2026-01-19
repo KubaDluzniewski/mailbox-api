@@ -1,6 +1,9 @@
 namespace Application.DTOs;
 
-public class UserDto
+/// <summary>
+///     DTO szczegółowych informacji o użytkowniku
+/// </summary>
+public class UserDetailDto
 {
     /// <summary>
     ///     Id
@@ -26,4 +29,14 @@ public class UserDto
     ///     Rola użytkownika
     /// </summary>
     public string Role { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Czy użytkownik jest aktywny
+    /// </summary>
+    public bool IsActive { get; set; }
+
+    /// <summary>
+    ///     Data utworzenia konta
+    /// </summary>
+    public DateTime CreatedAt { get; set; }
 }

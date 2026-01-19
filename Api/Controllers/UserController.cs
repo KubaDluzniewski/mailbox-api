@@ -1,6 +1,7 @@
 using Application.DTOs;
 using Application.Interfaces;
 using AutoMapper;
+using Core.Entity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -57,5 +58,74 @@ public class UserController : ControllerBase
         if (result)
             return Ok("Email changed successfully.");
         return BadRequest("Failed to change email.");
+    }
+
+    // Admin endpoints
+    [Authorize(Roles = "ADMIN")]
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<UserDetailDto>>> GetAll()
+    {
+        var users = await _userService.GetAllAsync();
+        return Ok(users.Select(u => _mapper.Map<UserDetailDto>(u)));
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateUserDto dto)
+    {
+        var user = await _userService.CreateUserAsync(
+            dto.Name,
+            dto.Surname,
+            dto.Email,
+            dto.Password,
+            dto.Role,
+            dto.IsActive
+        );
+
+        if (user == null)
+            return BadRequest("User with this email already exists.");
+
+        return CreatedAtAction(nameof(Get), new { id = user.Id }, _mapper.Map<UserDetailDto>(user));
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateUserDto dto)
+    {
+        var user = await _userService.UpdateUserAsync(
+            id,
+            dto.Name,
+            dto.Surname,
+            dto.Email,
+            dto.Role,
+            dto.IsActive
+        );
+
+        if (user == null)
+            return BadRequest("Failed to update user. User not found or email already exists.");
+
+        return Ok(_mapper.Map<UserDetailDto>(user));
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var result = await _userService.DeleteUserAsync(id);
+        if (!result)
+            return NotFound("User not found.");
+
+        return NoContent();
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpPost("{id}/toggle-status")]
+    public async Task<IActionResult> ToggleStatus(int id)
+    {
+        var result = await _userService.ToggleUserStatusAsync(id);
+        if (!result)
+            return NotFound("User not found.");
+
+        return Ok("User status toggled successfully.");
     }
 }

@@ -11,14 +11,14 @@ public interface IMessageService
     /// <param name="message"></param>
     /// <returns></returns>
     Task SendMessageAsync(Message message);
-    
+
     /// <summary>
     ///     Pobranie wiadomości dla użytkownika odebranych
     /// </summary>
     /// <param name="userId"></param>
     /// <returns></returns>
     Task<List<Message>> GetMessagesForUserAsync(int userId);
-    
+
     /// <summary>
     ///     Pobranie wiadomości wysłanych przez użytkownika
     /// </summary>
@@ -27,7 +27,7 @@ public interface IMessageService
     Task<List<Message>> GetMessagesSentByUserAsync(int userId);
 
     /// <summary>
-    ///     Wysłanie wiadomości ses + baza 
+    ///     Wysłanie wiadomości ses + baza
     /// </summary>
     /// <param name="dto"></param>
     /// <param name="senderId"></param>
@@ -39,4 +39,33 @@ public interface IMessageService
     Task<Message> SaveDraftAsync(SendMessageDto dto, int senderId, CancellationToken cancellationToken);
     Task<List<Message>> GetDraftsForUserAsync(int userId);
     Task<bool> DeleteDraftAsync(int draftId, int userId);
+
+    /// <summary>
+    ///     Oznacza wiadomość jako przeczytaną
+    /// </summary>
+    /// <param name="messageId"></param>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<bool> MarkAsReadAsync(int messageId, int userId);
+
+    /// <summary>
+    ///     Oznacza wiadomość jako nieprzeczytaną
+    /// </summary>
+    /// <param name="messageId"></param>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<bool> MarkAsUnreadAsync(int messageId, int userId);
+
+    /// <summary>
+    ///     Pobiera liczbę nieprzeczytanych wiadomości
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<int> GetUnreadCountAsync(int userId);
+
+    /// <summary>
+    ///     Pobiera wszystkie wiadomości broadcast (wysłane do wielu odbiorców) - tylko dla administratorów
+    /// </summary>
+    /// <returns></returns>
+    Task<List<Message>> GetAllBroadcastMessagesAsync();
 }

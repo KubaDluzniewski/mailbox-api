@@ -9,6 +9,8 @@ public class MessageRecipient
     public int MessageId { get; set; }
     public int RecipientEntityId { get; set; }
     public RecipientType RecipientType { get; set; }
+    public bool IsRead { get; set; } = false;
+    public DateTime? ReadAt { get; set; }
 
     public virtual Message? Message { get; set; }
 }

@@ -19,7 +19,7 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
             .OrderByDescending(m => m.SentDate)
             .ToListAsync();
     }
-    
+
     public async Task<List<Message>> GetMessagesSentByUserAsync(int userId)
     {
         return await Context.Set<Message>()
@@ -43,6 +43,50 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
         return await Context.Set<Message>()
             .Include(m => m.Recipients)
             .Where(m => m.SenderId == userId && m.IsDraft)
+            .ToListAsync();
+    }
+
+    public async Task<bool> MarkAsReadAsync(int messageId, int userId)
+    {
+        var recipient = await Context.Set<MessageRecipient>()
+            .FirstOrDefaultAsync(r => r.MessageId == messageId && r.RecipientEntityId == userId && r.RecipientType == RecipientType.User);
+
+        if (recipient == null) return false;
+
+        recipient.IsRead = true;
+        recipient.ReadAt = DateTime.UtcNow;
+        await Context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> MarkAsUnreadAsync(int messageId, int userId)
+    {
+        var recipient = await Context.Set<MessageRecipient>()
+            .FirstOrDefaultAsync(r => r.MessageId == messageId && r.RecipientEntityId == userId && r.RecipientType == RecipientType.User);
+
+        if (recipient == null) return false;
+
+        recipient.IsRead = false;
+        recipient.ReadAt = null;
+        await Context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<int> GetUnreadCountForUserAsync(int userId)
+    {
+        return await Context.Set<MessageRecipient>()
+            .Where(r => r.RecipientEntityId == userId && r.RecipientType == RecipientType.User && !r.IsRead)
+            .CountAsync();
+    }
+
+    public async Task<List<Message>> GetAllBroadcastMessagesAsync()
+    {
+        return await Context.Set<Message>()
+            .AsNoTracking()
+            .Include(m => m.Sender)
+            .Include(m => m.Recipients)
+            .Where(m => !m.IsDraft && m.Recipients.Count >= 3) // Broadcast = 3 or more recipients
+            .OrderByDescending(m => m.SentDate)
             .ToListAsync();
     }
 }

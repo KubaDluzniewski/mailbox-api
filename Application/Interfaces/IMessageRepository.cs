@@ -10,7 +10,7 @@ public interface IMessageRepository : IRepository<Message>
     /// <param name="userId"></param>
     /// <returns></returns>
     Task<List<Message>> GetMessagesForUserAsync(int userId);
-    
+
     /// <summary>
     ///     Pobiera wiadomości wysłane przez użytkownika
     /// </summary>
@@ -31,4 +31,33 @@ public interface IMessageRepository : IRepository<Message>
     /// <param name="userId"></param>
     /// <returns></returns>
     Task<List<Message>> GetDraftsForUserWithRecipientsAsync(int userId);
+
+    /// <summary>
+    ///     Oznacza wiadomość jako przeczytaną dla użytkownika
+    /// </summary>
+    /// <param name="messageId"></param>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<bool> MarkAsReadAsync(int messageId, int userId);
+
+    /// <summary>
+    ///     Oznacza wiadomość jako nieprzeczytaną dla użytkownika
+    /// </summary>
+    /// <param name="messageId"></param>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<bool> MarkAsUnreadAsync(int messageId, int userId);
+
+    /// <summary>
+    ///     Pobiera liczbę nieprzeczytanych wiadomości dla użytkownika
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<int> GetUnreadCountForUserAsync(int userId);
+
+    /// <summary>
+    ///     Pobiera wszystkie wiadomości broadcast (z wieloma odbiorcami)
+    /// </summary>
+    /// <returns></returns>
+    Task<List<Message>> GetAllBroadcastMessagesAsync();
 }

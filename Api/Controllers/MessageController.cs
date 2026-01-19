@@ -73,7 +73,8 @@ public class MessageController : ControllerBase
                     DisplayName = user?.FullName() ?? "Unknown",
                     Subtitle = user?.Email ?? ""
                 };
-            }).ToList()
+            }).ToList(),
+            IsRead = m.Recipients.FirstOrDefault(r => r.RecipientEntityId == userId.Value && r.RecipientType == RecipientType.User)?.IsRead ?? false
         }).ToList();
 
         return Ok(result);
@@ -202,6 +203,73 @@ public class MessageController : ControllerBase
         };
 
         return Ok(response);
+    }
+
+    [Authorize]
+    [HttpPut("{id}/read")]
+    public async Task<IActionResult> MarkAsRead(int id)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _messageService.MarkAsReadAsync(id, userId.Value);
+        if (!result) return NotFound();
+
+        return Ok();
+    }
+
+    [Authorize]
+    [HttpPut("{id}/unread")]
+    public async Task<IActionResult> MarkAsUnread(int id)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _messageService.MarkAsUnreadAsync(id, userId.Value);
+        if (!result) return NotFound();
+
+        return Ok();
+    }
+
+    [Authorize]
+    [HttpGet("unread-count")]
+    public async Task<IActionResult> GetUnreadCount()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var count = await _messageService.GetUnreadCountAsync(userId.Value);
+        return Ok(new { count });
+    }
+
+    [Authorize(Roles = "ADMIN")]
+    [HttpGet("admin/broadcasts")]
+    public async Task<IActionResult> GetAllBroadcastMessages()
+    {
+        var list = await _messageService.GetAllBroadcastMessagesAsync();
+
+        var userIds = list.SelectMany(m => m.Recipients.Select(r => r.RecipientEntityId)).Distinct().ToList();
+        var users = await _userService.GetByIdsAsync(userIds);
+
+        var result = list.Select(m => new {
+            m.Id,
+            m.Subject,
+            m.Body,
+            Sender = new { m.Sender?.Id, m.Sender?.Name, m.Sender?.Surname, m.Sender?.Email },
+            m.SentDate,
+            RecipientCount = m.Recipients.Count,
+            Recipients = m.Recipients.Select(r => {
+                var user = users.FirstOrDefault(u => u.Id == r.RecipientEntityId);
+                return new RecipientDto {
+                    Id = r.RecipientEntityId,
+                    Type = "user",
+                    DisplayName = user?.FullName() ?? "Unknown",
+                    Subtitle = user?.Email ?? ""
+                };
+            }).ToList()
+        }).ToList();
+
+        return Ok(result);
     }
 
     private int? GetCurrentUserId()
