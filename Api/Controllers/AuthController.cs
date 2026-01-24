@@ -20,12 +20,24 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] AuthDto dto)
     {
-        var token = await _authService.LoginAsync(dto.Email, dto.Password);
+        try
+        {
+            var token = await _authService.LoginAsync(dto.Email, dto.Password);
 
-        if (token == null)
-            return BadRequest("Błąd logowania.");
+            if (token == null)
+                return BadRequest("Błąd logowania.");
 
-        return Ok(new { token });
+            return Ok(new { token });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            if (ex.Message == "Account is not active.")
+            {
+                // Return consistent error structure
+                return StatusCode(403, new { message = "Account is not active." });
+            }
+            return Unauthorized();
+        }
     }
 
     [HttpPost("register")]

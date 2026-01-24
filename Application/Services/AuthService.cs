@@ -59,6 +59,11 @@ public class AuthService : IAuthService
         var passwordValid = BCrypt.Net.BCrypt.Verify(password, credential.PasswordHash);
         if (!passwordValid) return null;
 
+        if (!user.IsActive)
+        {
+            throw new UnauthorizedAccessException("Account is not active.");
+        }
+
         var token = GenerateJwtToken(user);
         Console.WriteLine($"Generated token for user: {user.Id}, {user.Name}, {user.Surname}, {user.Email}, {user.IsActive}");
         return token;
