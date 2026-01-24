@@ -185,9 +185,9 @@ namespace Application.Services
             return await _messageRepository.GetUnreadCountForUserAsync(userId);
         }
 
-        public async Task<List<Message>> GetAllBroadcastMessagesAsync()
+        public async Task<List<Message>> GetAllMessagesAsync()
         {
-            return await _messageRepository.GetAllBroadcastMessagesAsync();
+            return await _messageRepository.GetAllMessagesAsync();
         }
     }
 }

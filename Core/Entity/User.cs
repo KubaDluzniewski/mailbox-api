@@ -13,10 +13,11 @@ public class User
     public required string Surname { get; set; }
     public required string Email { get; set; }
     public bool IsActive { get; set; }
-    public UserRole Role { get; set; } = UserRole.STUDENT;
     public DateTime CreatedAt { get; set; }
 
     public virtual UserCredential? UserCredential { get; set; }
+
+    public virtual ICollection<UserRoleAssignment> Roles { get; set; } = new List<UserRoleAssignment>();
 
     public virtual ICollection<Message> SentMessages { get; set; } = new List<Message>();
 

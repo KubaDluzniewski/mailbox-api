@@ -35,5 +35,25 @@ public class UserRepository : BaseRepository<User>, IUserRepository
             .Take(limit)
             .ToListAsync();
     }
-}
 
+    public async Task<User?> GetByEmailWithRolesAsync(string email)
+    {
+        return await Context.Users
+            .Include(u => u.Roles)
+            .SingleOrDefaultAsync(u => u.Email == email);
+    }
+
+    public async Task<List<User>> GetAllWithRolesAsync()
+    {
+        return await Context.Users
+            .Include(u => u.Roles)
+            .ToListAsync();
+    }
+
+    public async Task<User?> GetByIdWithRolesAsync(int id)
+    {
+        return await Context.Users
+            .Include(u => u.Roles)
+            .SingleOrDefaultAsync(u => u.Id == id);
+    }
+}

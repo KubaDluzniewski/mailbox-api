@@ -79,13 +79,13 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
             .CountAsync();
     }
 
-    public async Task<List<Message>> GetAllBroadcastMessagesAsync()
+    public async Task<List<Message>> GetAllMessagesAsync()
     {
         return await Context.Set<Message>()
             .AsNoTracking()
             .Include(m => m.Sender)
             .Include(m => m.Recipients)
-            .Where(m => !m.IsDraft && m.Recipients.Count >= 3) // Broadcast = 3 or more recipients
+            .Where(m => !m.IsDraft) // Return all non-draft messages
             .OrderByDescending(m => m.SentDate)
             .ToListAsync();
     }

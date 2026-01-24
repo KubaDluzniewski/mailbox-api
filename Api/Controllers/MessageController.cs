@@ -56,25 +56,27 @@ public class MessageController : ControllerBase
 
         var list = await _messageService.GetMessagesForUserAsync(userId.Value);
 
-        var userIds = list.SelectMany(m => m.Recipients.Select(r => r.RecipientEntityId)).Distinct().ToList();
-        var users = await _userService.GetByIdsAsync(userIds);
+        var result = list.Select(m => {
+            var currentUserRecipient = m.Recipients.FirstOrDefault(r => r.RecipientEntityId == userId.Value && r.RecipientType == RecipientType.User);
 
-        var result = list.Select(m => new {
-            m.Id,
-            m.Subject,
-            m.Body,
-            Sender = new { m.Sender?.Id, m.Sender?.Name, m.Sender?.Surname, m.Sender?.Email },
-            m.SentDate,
-            Recipients = m.Recipients.Select(r => {
-                var user = users.FirstOrDefault(u => u.Id == r.RecipientEntityId);
-                return new RecipientDto {
-                    Id = r.RecipientEntityId,
-                    Type = "user",
-                    DisplayName = user?.FullName() ?? "Unknown",
-                    Subtitle = user?.Email ?? ""
-                };
-            }).ToList(),
-            IsRead = m.Recipients.FirstOrDefault(r => r.RecipientEntityId == userId.Value && r.RecipientType == RecipientType.User)?.IsRead ?? false
+            return new {
+                m.Id,
+                m.Subject,
+                m.Body,
+                Sender = new { m.Sender?.Id, m.Sender?.Name, m.Sender?.Surname, m.Sender?.Email },
+                m.SentDate,
+                CreatedAt = m.SentDate,
+                Recipients = new[] {
+                    new RecipientDto {
+                        Id = m.Sender?.Id ?? 0,
+                        Type = "user",
+                        DisplayName = m.Sender?.FullName() ?? "Unknown",
+                        Subtitle = m.Sender?.Email ?? ""
+                    }
+                }.ToList(),
+                IsRead = currentUserRecipient?.IsRead ?? false,
+                ReadAt = currentUserRecipient?.ReadAt
+            };
         }).ToList();
 
         return Ok(result);
@@ -243,10 +245,10 @@ public class MessageController : ControllerBase
     }
 
     [Authorize(Roles = "ADMIN")]
-    [HttpGet("admin/broadcasts")]
-    public async Task<IActionResult> GetAllBroadcastMessages()
+    [HttpGet("admin/all")]
+    public async Task<IActionResult> GetAllMessages()
     {
-        var list = await _messageService.GetAllBroadcastMessagesAsync();
+        var list = await _messageService.GetAllMessagesAsync();
 
         var userIds = list.SelectMany(m => m.Recipients.Select(r => r.RecipientEntityId)).Distinct().ToList();
         var users = await _userService.GetByIdsAsync(userIds);

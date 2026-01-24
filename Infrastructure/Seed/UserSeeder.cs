@@ -19,8 +19,7 @@ public static class UserSeeder
                 Name = "Kuba",
                 Surname = "Dłużniewski",
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true,
-                Role = UserRole.ADMIN
+                IsActive = true
             },
             new()
             {
@@ -28,8 +27,7 @@ public static class UserSeeder
                 Name = "Jakub",
                 Surname = "Niedłużniewski",
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true,
-                Role = UserRole.LECTURER
+                IsActive = true
             }
         };
 
@@ -46,6 +44,15 @@ public static class UserSeeder
             });
         }
         await context.UserCredentials.AddRangeAsync(credentials);
+        await context.SaveChangesAsync();
+
+        // Create role assignments
+        var roleAssignments = new List<UserRoleAssignment>
+        {
+            new() { UserId = users[0].Id, Role = UserRole.ADMIN },
+            new() { UserId = users[1].Id, Role = UserRole.LECTURER }
+        };
+        await context.UserRoleAssignments.AddRangeAsync(roleAssignments);
         await context.SaveChangesAsync();
 
         return users;

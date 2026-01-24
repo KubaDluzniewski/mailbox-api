@@ -64,8 +64,8 @@ public interface IMessageService
     Task<int> GetUnreadCountAsync(int userId);
 
     /// <summary>
-    ///     Pobiera wszystkie wiadomości broadcast (wysłane do wielu odbiorców) - tylko dla administratorów
+    ///     Pobiera wszystkie wiadomości w systemie - tylko dla administratorów
     /// </summary>
     /// <returns></returns>
-    Task<List<Message>> GetAllBroadcastMessagesAsync();
+    Task<List<Message>> GetAllMessagesAsync();
 }

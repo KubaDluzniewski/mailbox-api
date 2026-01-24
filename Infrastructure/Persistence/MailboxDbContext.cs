@@ -11,6 +11,7 @@ public class MailboxDbContext : DbContext
     public DbSet<Message> Messages { get; set; }
     public DbSet<MessageRecipient> MessageRecipients { get; set; }
     public DbSet<UserCredential> UserCredentials { get; set; }
+    public DbSet<UserRoleAssignment> UserRoleAssignments { get; set; }
 
     public DbSet<Group> Groups { get; set; }
     public DbSet<UserActivationToken> UserActivationTokens { get; set; }
@@ -38,6 +39,11 @@ public class MailboxDbContext : DbContext
         modelBuilder.Entity<Group>()
             .HasMany(u => u.Users);
 
+        modelBuilder.Entity<UserRoleAssignment>()
+            .HasOne(r => r.User)
+            .WithMany(u => u.Roles)
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         base.OnModelCreating(modelBuilder);
     }
