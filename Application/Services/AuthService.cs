@@ -18,6 +18,7 @@ public class AuthService : IAuthService
     private readonly string? _jwtIssuer;
     private readonly string? _jwtAudience;
     private readonly string? _registrationSecret;
+    private readonly string _frontendUrl;
     private readonly IRepository<UserCredential> _userCredentialRepository;
     private readonly IUserRepository _userRepository;
     private readonly ISesEmailService _emailService;
@@ -42,6 +43,7 @@ public class AuthService : IAuthService
         _jwtIssuer = configuration["Jwt:Issuer"];
         _jwtAudience = configuration["Jwt:Audience"];
         _registrationSecret = configuration["Registration:Secret"];
+        _frontendUrl = configuration["App:FrontendUrl"] ?? "http://localhost:5173";
     }
 
 
@@ -96,7 +98,7 @@ public class AuthService : IAuthService
         await _userActivationTokenRepository.AddAsync(tokenEntity);
         await _userActivationTokenRepository.SaveChangesAsync();
 
-        var confirmationLink = $"http://localhost:5173/confirm?token={activationToken}&email={email}";
+        var confirmationLink = $"{_frontendUrl}/confirm?token={activationToken}&email={email}";
         var subject = "Potwierdzenie konta";
         var htmlBody = $"<p>Kliknij link, aby aktywować konto: <a href='{confirmationLink}'>Aktywuj konto</a></p>";
         await _emailService.SendEmailAsync("Mailbox", email, subject, htmlBody);
@@ -139,7 +141,7 @@ public class AuthService : IAuthService
         await _userActivationTokenRepository.AddAsync(tokenEntity);
         await _userActivationTokenRepository.SaveChangesAsync();
 
-        var confirmationLink = $"http://localhost:5173/confirm?token={token}&email={newEmail}";
+        var confirmationLink = $"{_frontendUrl}/confirm?token={token}&email={newEmail}";
         var subject = "Potwierdź zmianę adresu email";
         var htmlBody = $"<p>Kliknij link, aby potwierdzić zmianę adresu email: <a href='{confirmationLink}'>Zmień email</a></p>";
 
@@ -208,7 +210,7 @@ public class AuthService : IAuthService
         var encodedEmail = System.Net.WebUtility.UrlEncode(email);
         var encodedToken = System.Net.WebUtility.UrlEncode(token);
 
-        var resetLink = $"http://localhost:5173/reset-password?token={encodedToken}&email={encodedEmail}";
+        var resetLink = $"{_frontendUrl}/reset-password?token={encodedToken}&email={encodedEmail}";
         var subject = "Reset hasła";
         var htmlBody = $"<p>Kliknij link, aby zresetować hasło: <a href='{resetLink}'>Zresetuj hasło</a></p>";
 
