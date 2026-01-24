@@ -25,6 +25,13 @@ public interface IUserService
     Task<User?> GetByEmailAsync(string email);
 
     /// <summary>
+    ///     Pobieranie użytkownika po emailu wraz z rolami
+    /// </summary>
+    /// <param name="email"></param>
+    /// <returns></returns>
+    Task<User?> GetByEmailWithRolesAsync(string email);
+
+    /// <summary>
     ///     Pobieranie danych uwierzytelniających użytkownika po Id użytkownika
     /// </summary>
     /// <param name="userId"></param>
@@ -64,6 +71,14 @@ public interface IUserService
     Task<bool> ChangePasswordAsync(int userId, string oldPassword, string newPassword);
 
     /// <summary>
+    ///     Ustawienie nowego hasła użytkownika (bez weryfikacji starego - dla resetu hasła)
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <param name="newPassword"></param>
+    /// <returns></returns>
+    Task<bool> SetPasswordAsync(int userId, string newPassword);
+
+    /// <summary>
     ///     Zmiana adresu e-mail użytkownika
     /// </summary>
     /// <param name="userId"></param>
@@ -82,7 +97,7 @@ public interface IUserService
     /// <param name="role"></param>
     /// <param name="isActive"></param>
     /// <returns></returns>
-    Task<User?> CreateUserAsync(string name, string surname, string email, string password, UserRole role, bool isActive = true);
+    Task<User?> CreateUserAsync(string name, string surname, string email, string password, List<UserRole> roles, bool isActive = true);
 
     /// <summary>
     ///     Aktualizacja użytkownika (admin)
@@ -94,7 +109,7 @@ public interface IUserService
     /// <param name="role"></param>
     /// <param name="isActive"></param>
     /// <returns></returns>
-    Task<User?> UpdateUserAsync(int userId, string? name, string? surname, string? email, UserRole? role, bool? isActive);
+    Task<User?> UpdateUserAsync(int userId, string? name, string? surname, string? email, List<UserRole>? roles, bool? isActive);
 
     /// <summary>
     ///     Usuwanie użytkownika (admin)

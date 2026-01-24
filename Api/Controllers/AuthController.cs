@@ -24,7 +24,7 @@ public class AuthController : ControllerBase
 
         if (token == null)
             return BadRequest("Błąd logowania.");
-        
+
         return Ok(new { token });
     }
 
@@ -57,7 +57,7 @@ public class AuthController : ControllerBase
 
             if (result)
                 return Ok("Email aktywacyjny/zmieniający adres został wysłany.");
-        
+
             return BadRequest("Błąd wysyłania emaila.");
         }
         catch (Exception ex)
@@ -74,7 +74,24 @@ public class AuthController : ControllerBase
             return Ok(new { message = "Success", type = result });
         return BadRequest("Błąd aktywacji/zmiany emaila.");
     }
-    
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+    {
+        var link = await _authService.ForgotPasswordAsync(dto.Email);
+        // Note: Returning link strictly for debugging purposes since email service might not be configured
+        return Ok(new { message = "Jeśli konto istnieje, wysłaliśmy link do resetu hasła." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    {
+        var result = await _authService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
+        if (result)
+            return Ok("Hasło zostało zresetowane.");
+        return BadRequest("Błąd resetowania hasła (nieprawidłowy token lub email).");
+    }
+
     private int? GetCurrentUserId()
     {
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

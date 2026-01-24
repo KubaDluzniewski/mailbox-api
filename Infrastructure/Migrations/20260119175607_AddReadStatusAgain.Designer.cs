@@ -3,6 +3,7 @@ using System;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(MailboxDbContext))]
-    partial class MailboxDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260119175607_AddReadStatusAgain")]
+    partial class AddReadStatusAgain
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -130,6 +133,9 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Surname")
                         .IsRequired()
                         .HasColumnType("text");
@@ -177,9 +183,6 @@ namespace Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("PasswordChangedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -193,27 +196,6 @@ namespace Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("UserCredentials");
-                });
-
-            modelBuilder.Entity("Core.Entity.UserRoleAssignment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Role")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserRoleAssignments");
                 });
 
             modelBuilder.Entity("GroupUser", b =>
@@ -268,17 +250,6 @@ namespace Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Core.Entity.UserRoleAssignment", b =>
-                {
-                    b.HasOne("Core.Entity.User", "User")
-                        .WithMany("Roles")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("GroupUser", b =>
                 {
                     b.HasOne("Core.Entity.Group", null)
@@ -302,8 +273,6 @@ namespace Infrastructure.Migrations
             modelBuilder.Entity("Core.Entity.User", b =>
                 {
                     b.Navigation("ReceivedMessages");
-
-                    b.Navigation("Roles");
 
                     b.Navigation("SentMessages");
 

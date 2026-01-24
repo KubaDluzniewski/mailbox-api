@@ -28,9 +28,9 @@ public class CreateUserDto
     public required string Password { get; set; }
 
     /// <summary>
-    ///     Rola użytkownika
+    ///     Role użytkownika
     /// </summary>
-    public UserRole Role { get; set; } = UserRole.STUDENT;
+    public List<UserRole> Roles { get; set; } = new() { UserRole.STUDENT };
 
     /// <summary>
     ///     Czy użytkownik jest aktywny

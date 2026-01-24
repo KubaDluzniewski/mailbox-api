@@ -26,9 +26,9 @@ public class UserDetailDto
     public string Surname { get; set; } = string.Empty;
 
     /// <summary>
-    ///     Rola użytkownika
+    ///     Role użytkownika
     /// </summary>
-    public string Role { get; set; } = string.Empty;
+    public List<string> Roles { get; set; } = new();
 
     /// <summary>
     ///     Czy użytkownik jest aktywny

@@ -23,9 +23,9 @@ public class UpdateUserDto
     public string? Email { get; set; }
 
     /// <summary>
-    ///     Rola użytkownika
+    ///     Role użytkownika
     /// </summary>
-    public UserRole? Role { get; set; }
+    public List<UserRole>? Roles { get; set; }
 
     /// <summary>
     ///     Czy użytkownik jest aktywny

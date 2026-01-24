@@ -7,11 +7,16 @@ public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IRepository<UserCredential> _userCredentialRepository;
+    private readonly IRepository<UserRoleAssignment> _userRoleAssignmentRepository;
 
-    public UserService(IUserRepository userRepository, IRepository<UserCredential> userCredentialRepository)
+    public UserService(
+        IUserRepository userRepository,
+        IRepository<UserCredential> userCredentialRepository,
+        IRepository<UserRoleAssignment> userRoleAssignmentRepository)
     {
         _userRepository = userRepository;
         _userCredentialRepository = userCredentialRepository;
+        _userRoleAssignmentRepository = userRoleAssignmentRepository;
     }
 
     public async Task<bool> ChangeEmailAsync(int userId, string newEmail, string currentPassword)
@@ -34,11 +39,13 @@ public class UserService : IUserService
         return true;
     }
 
-    public async Task<User?> GetByIdAsync(int id) => await _userRepository.GetByIdAsync(id);
+    public async Task<User?> GetByIdAsync(int id) => await _userRepository.GetByIdWithRolesAsync(id);
 
-    public async Task<List<User>> GetAllAsync() => await _userRepository.GetAllAsync();
+    public async Task<List<User>> GetAllAsync() => await _userRepository.GetAllWithRolesAsync();
 
     public async Task<User?> GetByEmailAsync(string email) => await _userRepository.FindSingleAsync(u => u.Email == email);
+
+    public async Task<User?> GetByEmailWithRolesAsync(string email) => await _userRepository.GetByEmailWithRolesAsync(email);
 
     public async Task<UserCredential?> GetCredentialByUserIdAsync(int userId) => await _userCredentialRepository.FindSingleAsync(uc => uc.UserId == userId);
 
@@ -61,12 +68,24 @@ public class UserService : IUserService
         if (!passwordValid) return false;
 
         credential.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        credential.PasswordChangedAt = DateTime.UtcNow;
         _userCredentialRepository.Update(credential);
         await _userCredentialRepository.SaveChangesAsync();
         return true;
     }
 
-    public async Task<User?> CreateUserAsync(string name, string surname, string email, string password, UserRole role, bool isActive = true)
+    public async Task<bool> SetPasswordAsync(int userId, string newPassword)
+    {
+        var credential = await _userCredentialRepository.FindSingleAsync(c => c.UserId == userId);
+        if (credential == null) return false;
+
+        credential.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        _userCredentialRepository.Update(credential);
+        await _userCredentialRepository.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<User?> CreateUserAsync(string name, string surname, string email, string password, List<UserRole> roles, bool isActive = true)
     {
         // Check if user with this email already exists
         var existingUser = await _userRepository.FindSingleAsync(u => u.Email == email);
@@ -78,7 +97,6 @@ public class UserService : IUserService
             Surname = surname,
             Email = email,
             IsActive = isActive,
-            Role = role,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -95,10 +113,25 @@ public class UserService : IUserService
         await _userCredentialRepository.AddAsync(credential);
         await _userCredentialRepository.SaveChangesAsync();
 
+        // Create role assignments
+        var roleAssignments = new List<UserRoleAssignment>();
+        foreach (var role in roles)
+        {
+            var roleAssignment = new UserRoleAssignment
+            {
+                UserId = user.Id,
+                Role = role
+            };
+            await _userRoleAssignmentRepository.AddAsync(roleAssignment);
+            roleAssignments.Add(roleAssignment);
+        }
+        await _userRoleAssignmentRepository.SaveChangesAsync();
+
+        user.Roles = roleAssignments;
         return user;
     }
 
-    public async Task<User?> UpdateUserAsync(int userId, string? name, string? surname, string? email, UserRole? role, bool? isActive)
+    public async Task<User?> UpdateUserAsync(int userId, string? name, string? surname, string? email, List<UserRole>? roles, bool? isActive)
     {
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null) return null;
@@ -117,8 +150,31 @@ public class UserService : IUserService
             user.Email = email;
         }
 
-        if (role.HasValue)
-            user.Role = role.Value;
+        if (roles != null)
+        {
+            // Remove existing roles
+            var existingRoles = await _userRoleAssignmentRepository.FindAsync(r => r.UserId == userId);
+            foreach (var existingRole in existingRoles)
+            {
+                _userRoleAssignmentRepository.Remove(existingRole);
+            }
+            await _userRoleAssignmentRepository.SaveChangesAsync();
+
+            // Add new roles
+            var newAssignments = new List<UserRoleAssignment>();
+            foreach (var role in roles)
+            {
+                var roleAssignment = new UserRoleAssignment
+                {
+                    UserId = user.Id,
+                    Role = role
+                };
+                await _userRoleAssignmentRepository.AddAsync(roleAssignment);
+                newAssignments.Add(roleAssignment);
+            }
+            await _userRoleAssignmentRepository.SaveChangesAsync();
+            user.Roles = newAssignments;
+        }
 
         if (isActive.HasValue)
             user.IsActive = isActive.Value;

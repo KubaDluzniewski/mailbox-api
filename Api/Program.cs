@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Application;
 using Infrastructure;
 using Infrastructure.Persistence;
@@ -21,6 +21,7 @@ builder.Services.AddApplication()
 builder.Services.AddControllers().AddJsonOptions(o =>
 {
     o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
 });
 
 // FluentValidation

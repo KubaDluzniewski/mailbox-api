@@ -56,8 +56,8 @@ public interface IMessageRepository : IRepository<Message>
     Task<int> GetUnreadCountForUserAsync(int userId);
 
     /// <summary>
-    ///     Pobiera wszystkie wiadomości broadcast (z wieloma odbiorcami)
+    ///     Pobiera wszystkie wiadomości w systemie (tylko dla administratorów)
     /// </summary>
     /// <returns></returns>
-    Task<List<Message>> GetAllBroadcastMessagesAsync();
+    Task<List<Message>> GetAllMessagesAsync();
 }

@@ -27,6 +27,20 @@ public class UserController : ControllerBase
         return Ok(_mapper.Map<UserDto>(user));
     }
 
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMe()
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+        var user = await _userService.GetByIdAsync(userId);
+        if (user == null) return NotFound();
+
+        // Use UserDetailDto to include roles and active status
+        return Ok(_mapper.Map<UserDetailDto>(user));
+    }
+
     [HttpGet("getSuggestion")]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetAllOrSearch([FromQuery] string? name)
     {
@@ -60,6 +74,19 @@ public class UserController : ControllerBase
         return BadRequest("Failed to change email.");
     }
 
+    [Authorize]
+    [HttpGet("password-changed-at")]
+    public async Task<IActionResult> GetPasswordChangedAt()
+    {
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+        var credential = await _userService.GetCredentialByUserIdAsync(userId);
+        if (credential == null) return NotFound();
+
+        return Ok(new { passwordChangedAt = credential.PasswordChangedAt });
+    }
+
     // Admin endpoints
     [Authorize(Roles = "ADMIN")]
     [HttpGet]
@@ -78,7 +105,7 @@ public class UserController : ControllerBase
             dto.Surname,
             dto.Email,
             dto.Password,
-            dto.Role,
+            dto.Roles,
             dto.IsActive
         );
 
@@ -97,7 +124,7 @@ public class UserController : ControllerBase
             dto.Name,
             dto.Surname,
             dto.Email,
-            dto.Role,
+            dto.Roles,
             dto.IsActive
         );
 
