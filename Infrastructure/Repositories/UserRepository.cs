@@ -9,12 +9,20 @@ public class UserRepository : BaseRepository<User>, IUserRepository
 {
     public UserRepository(MailboxDbContext context) : base(context) { }
 
-    public async Task<List<User>> SearchBySurnameAsync(string term, int limit = 20)
+    public async Task<List<User>> SearchBySurnameAsync(string term, int limit = 20, List<UserRole>? requiredRoles = null)
     {
         if (string.IsNullOrWhiteSpace(term)) return new List<User>();
         term = term.Trim();
-        return await Context.Users
-            .Where(u => EF.Functions.ILike(u.Surname, $"%{term}%"))
+        var query = Context.Users
+            .Include(u => u.Roles)
+            .Where(u => EF.Functions.ILike(u.Surname, $"%{term}%"));
+
+        if (requiredRoles != null && requiredRoles.Count > 0)
+        {
+            query = query.Where(u => u.Roles.Any(r => requiredRoles.Contains(r.Role)));
+        }
+
+        return await query
             .OrderBy(u => u.Surname)
             .ThenBy(u => u.Name)
             .Take(limit)

@@ -17,6 +17,7 @@ public class AuthService : IAuthService
     private readonly string? _jwtKey;
     private readonly string? _jwtIssuer;
     private readonly string? _jwtAudience;
+    private readonly string? _registrationSecret;
     private readonly IRepository<UserCredential> _userCredentialRepository;
     private readonly IUserRepository _userRepository;
     private readonly ISesEmailService _emailService;
@@ -40,7 +41,10 @@ public class AuthService : IAuthService
         _jwtKey = configuration["Jwt:Key"];
         _jwtIssuer = configuration["Jwt:Issuer"];
         _jwtAudience = configuration["Jwt:Audience"];
+        _registrationSecret = configuration["Registration:Secret"];
     }
+
+
 
     public async Task<string?> LoginAsync(string email, string password)
     {
@@ -263,6 +267,28 @@ public class AuthService : IAuthService
         await _userActivationTokenRepository.SaveChangesAsync();
         Console.WriteLine($"[ResetPassword] Password reset successful for user: {email}");
         return true;
+    }
+
+    public async Task<bool> RegisterAsync(string name, string surname, string email, string password, string registrationCode)
+    {
+        if (string.IsNullOrWhiteSpace(_registrationSecret))
+        {
+             Console.WriteLine("Registration secret is not configured on server.");
+             return false;
+        }
+
+        if (registrationCode != _registrationSecret) return false;
+
+        var roles = new List<UserRole> { UserRole.STUDENT };
+        var createdUser = await _userService.CreateUserAsync(name, surname, email, password, roles, isActive: false);
+
+        if (createdUser != null)
+        {
+            await ActivateAsync(email);
+            return true;
+        }
+
+        return false;
     }
 
     private string GenerateJwtToken(User user)

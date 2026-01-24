@@ -55,7 +55,7 @@ public class UserService : IUserService
         return await _userRepository.FindAsync(u => idList.Contains(u.Id));
     }
 
-    public Task<List<User>> SearchBySurnameAsync(string term, int limit = 20) => _userRepository.SearchBySurnameAsync(term, limit);
+    public Task<List<User>> SearchBySurnameAsync(string term, int limit = 20, List<UserRole>? requiredRoles = null) => _userRepository.SearchBySurnameAsync(term, limit, requiredRoles);
 
     public Task<List<User>> SearchAsync(string term, int limit = 10) => _userRepository.SearchAsync(term, limit);
 

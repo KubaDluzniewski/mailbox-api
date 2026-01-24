@@ -28,6 +28,16 @@ public class AuthController : ControllerBase
         return Ok(new { token });
     }
 
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+    {
+        var result = await _authService.RegisterAsync(dto.Name, dto.Surname, dto.Email, dto.Password, dto.RegistrationCode);
+        if (result)
+            return Ok("Rejestracja pomyślna.");
+
+        return BadRequest("Błąd rejestracji (nieprawidłowy kod lub email zajęty).");
+    }
+
     [HttpPut("isActive")]
     public async Task<IActionResult> IsActive([FromQuery] string email)
     {

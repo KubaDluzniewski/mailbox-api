@@ -19,8 +19,17 @@ public class GroupController : ControllerBase
     }
 
     [HttpGet("suggestions")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> GetSuggestions([FromQuery] string name)
     {
+        var rolesClaims = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+        bool canAccess = rolesClaims.Any(r => r == "ADMIN" || r == "LECTURER");
+
+        if (!canAccess)
+        {
+            return Ok(new List<GroupDto>());
+        }
+
         var groups = await _groupService.GetSuggestionsAsync(name);
         var groupDtos = _mapper.Map<List<GroupDto>>(groups);
         return Ok(groupDtos);
