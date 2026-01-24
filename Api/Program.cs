@@ -75,9 +75,31 @@ var app = builder.Build();
 // Automatyczne migracje (prod-friendly)
 if (!args.Contains("seed"))
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<MailboxDbContext>();
-    await db.Database.MigrateAsync();
+    using (var scope = app.Services.CreateScope())
+    {
+        var services = scope.ServiceProvider;
+        try
+        {
+            var context = services.GetRequiredService<MailboxDbContext>();
+            if ((await context.Database.GetPendingMigrationsAsync()).Any())
+            {
+                Console.WriteLine("--> Wykryto oczekujące migracje. Nakładanie...");
+                await context.Database.MigrateAsync();
+                Console.WriteLine("--> Migracje zakończone sukcesem.");
+            }
+
+            if (!await context.Users.AnyAsync())
+            {
+                Console.WriteLine("--> Wykryto pustą bazę. Seedowanie...");
+                await DatabaseSeeder.SeedAsync(context);
+                Console.WriteLine("--> Seedowanie zakończone.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"--> Błąd podczas inicjalizacji bazy: {ex.Message}");
+        }
+    }
 }
 
 // Seed na żądanie: dotnet run -- seed
