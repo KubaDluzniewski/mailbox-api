@@ -44,7 +44,29 @@ public class UserController : ControllerBase
     [HttpGet("getSuggestion")]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetAllOrSearch([FromQuery] string? name)
     {
-        var list = await _userService.SearchBySurnameAsync(name, 10);
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+        var rolesClaims = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+        var userRoles = new List<UserRole>();
+        foreach (var roleStr in rolesClaims)
+        {
+            if (Enum.TryParse<Core.Entity.UserRole>(roleStr, out var roleEnum))
+            {
+                userRoles.Add(roleEnum);
+            }
+        }
+
+        List<Core.Entity.UserRole>? requiredRoles = null;
+        bool isAdmin = userRoles.Contains(Core.Entity.UserRole.ADMIN);
+        bool isLecturer = userRoles.Contains(Core.Entity.UserRole.LECTURER);
+
+        if (!isAdmin && !isLecturer)
+        {
+            requiredRoles = new List<Core.Entity.UserRole> { Core.Entity.UserRole.ADMIN, Core.Entity.UserRole.LECTURER };
+        }
+
+        var list = await _userService.SearchBySurnameAsync(name, 10, requiredRoles);
         return Ok(list.Select(u => _mapper.Map<UserDto>(u)));
     }
 
