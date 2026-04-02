@@ -12,4 +12,5 @@ public class Message
 
     public virtual User? Sender { get; set; }
     public virtual ICollection<MessageRecipient> Recipients { get; set; } = new List<MessageRecipient>();
+    public virtual ICollection<MessageAttachment> Attachments { get; set; } = new List<MessageAttachment>();
 }

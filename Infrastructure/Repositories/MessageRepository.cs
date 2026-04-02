@@ -15,6 +15,7 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
             .AsNoTracking()
             .Include(m => m.Sender)
             .Include(m => m.Recipients)
+            .Include(m => m.Attachments)
             .Where(m => m.Recipients.Any(r => r.RecipientEntityId == userId && r.RecipientType == RecipientType.User))
             .OrderByDescending(m => m.SentDate)
             .ToListAsync();
@@ -26,6 +27,7 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
             .AsNoTracking()
             .Include(m => m.Recipients)
             .Include(m => m.Sender)
+            .Include(m => m.Attachments)
             .Where(m => m.SenderId == userId && !m.IsDraft) // Only sent messages, not drafts
             .OrderByDescending(m => m.SentDate)
             .ToListAsync();
@@ -35,6 +37,7 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
     {
         return await Context.Set<Message>()
             .Include(m => m.Recipients)
+            .Include(m => m.Attachments)
             .FirstOrDefaultAsync(m => m.Id == draftId);
     }
 
@@ -42,6 +45,7 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
     {
         return await Context.Set<Message>()
             .Include(m => m.Recipients)
+            .Include(m => m.Attachments)
             .Where(m => m.SenderId == userId && m.IsDraft)
             .ToListAsync();
     }
@@ -85,8 +89,23 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
             .AsNoTracking()
             .Include(m => m.Sender)
             .Include(m => m.Recipients)
+            .Include(m => m.Attachments)
             .Where(m => !m.IsDraft) // Return all non-draft messages
             .OrderByDescending(m => m.SentDate)
             .ToListAsync();
+    }
+
+    public async Task<MessageAttachment?> GetAttachmentAsync(int messageId, int attachmentId)
+    {
+        return await Context.Set<MessageAttachment>()
+            .FirstOrDefaultAsync(a => a.MessageId == messageId && a.Id == attachmentId);
+    }
+
+    public async Task<bool> UserHasAccessToMessageAsync(int messageId, int userId)
+    {
+        return await Context.Set<Message>()
+            .AnyAsync(m => m.Id == messageId && !m.IsDraft &&
+                (m.SenderId == userId ||
+                 m.Recipients.Any(r => r.RecipientEntityId == userId && r.RecipientType == RecipientType.User)));
     }
 }
