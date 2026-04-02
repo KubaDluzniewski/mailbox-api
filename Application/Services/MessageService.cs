@@ -10,6 +10,7 @@ using Application.Interfaces;
 using Core.Entity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Configuration;
 
 namespace Application.Services
 {
@@ -19,13 +20,15 @@ namespace Application.Services
         private readonly IUserService _userService;
         private readonly IEmailService _sesEmailService;
         private readonly IGroupRepository _groupRepository;
+        private readonly IConfiguration _configuration;
 
-        public MessageService(IMessageRepository messageRepository, IUserService userService, IEmailService sesEmailService, IGroupRepository groupRepository)
+        public MessageService(IMessageRepository messageRepository, IUserService userService, IEmailService sesEmailService, IGroupRepository groupRepository, IConfiguration configuration)
         {
             _messageRepository = messageRepository;
             _userService = userService;
             _sesEmailService = sesEmailService;
             _groupRepository = groupRepository;
+            _configuration = configuration;
         }
 
         public async Task SendMessageAsync(Message message)
@@ -61,8 +64,29 @@ namespace Application.Services
 
             var users = await _userService.GetByIdsAsync(allRecipientUserIds);
 
+            IList<CreateAttachmentDto> finalAttachments = attachments ?? [];
+            if (dto.Id.HasValue && finalAttachments.Count == 0)
+            {
+                var existingDraft = await _messageRepository.GetDraftWithRecipientsAsync(dto.Id.Value);
+                if (existingDraft?.Attachments != null && existingDraft.Attachments.Count > 0)
+                {
+                    finalAttachments = existingDraft.Attachments.Select(a => new CreateAttachmentDto
+                    {
+                        FileName = a.FileName,
+                        ContentType = a.ContentType,
+                        FileSize = a.FileSize,
+                        Data = a.Data
+                    }).ToList();
+                }
+            }
+
             try
             {
+                var frontendUrl = _configuration["App:FrontendUrl"]?.TrimEnd('/');
+                var loginLink = string.IsNullOrWhiteSpace(frontendUrl)
+                    ? "http://localhost:5173/login"
+                    : $"{frontendUrl}/login";
+
                 foreach (var user in users)
                 {
                     if (string.IsNullOrWhiteSpace(user.Email)) continue;
@@ -72,7 +96,7 @@ namespace Application.Services
                         user.Name,
                         userDb.FullName(),
                         dto.Subject,
-                        dto.Body);
+                        loginLink);
                     await _sesEmailService.SendEmailAsync(
                         user.Name,
                         user.Email!,
@@ -94,7 +118,7 @@ namespace Application.Services
                 SenderId = senderId,
                 SentDate = DateTime.UtcNow,
                 Recipients = allRecipientUserIds.Select(id => new MessageRecipient { RecipientEntityId = id, RecipientType = RecipientType.User }).ToList(),
-                Attachments = (attachments ?? []).Select(a => new MessageAttachment
+                Attachments = finalAttachments.Select(a => new MessageAttachment
                 {
                     FileName = a.FileName,
                     ContentType = a.ContentType,
@@ -180,13 +204,16 @@ namespace Application.Services
 
             draft.Recipients = recipients;
 
-            draft.Attachments = (attachments ?? []).Select(a => new MessageAttachment
+            if (attachments != null)
             {
-                FileName = a.FileName,
-                ContentType = a.ContentType,
-                FileSize = a.FileSize,
-                Data = a.Data
-            }).ToList();
+                draft.Attachments = attachments.Select(a => new MessageAttachment
+                {
+                    FileName = a.FileName,
+                    ContentType = a.ContentType,
+                    FileSize = a.FileSize,
+                    Data = a.Data
+                }).ToList();
+            }
 
             await _messageRepository.SaveChangesAsync();
             return draft;

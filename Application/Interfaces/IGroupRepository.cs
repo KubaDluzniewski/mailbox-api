@@ -9,4 +9,8 @@ public interface IGroupRepository : IRepository<Group>
     Task<List<User>> GetAllUsersAsyncByGroup(int id);
 
     Task<List<Group>> SearchAsync(string term, int limit = 10);
+
+    Task<List<Group>> GetAllWithUsersAsync();
+
+    Task<Group?> GetByIdWithUsersAsync(int id);
 }

@@ -16,12 +16,13 @@ public static class EmailTemplates
             .Replace("{{firstName}}", HtmlEncode(firstName))
             .Replace("{{activationLink}}", activationLink);
 
-    /// <summary>Powiadomienie o nowej wiadomości – placeholdery: {{recipientFirstName}}, {{senderFullName}}, {{subject}}</summary>
-    public static string NewMessageNotification(string recipientFirstName, string senderFullName, string subject, string bodyHtml) =>
+    /// <summary>Powiadomienie o nowej wiadomości – placeholdery: {{recipientFirstName}}, {{senderFullName}}, {{subject}}, {{loginLink}}</summary>
+    public static string NewMessageNotification(string recipientFirstName, string senderFullName, string subject, string loginLink) =>
         Load("new-message")
             .Replace("{{recipientFirstName}}", HtmlEncode(recipientFirstName))
             .Replace("{{senderFullName}}", HtmlEncode(senderFullName))
-            .Replace("{{subject}}", HtmlEncode(subject));
+            .Replace("{{subject}}", HtmlEncode(subject))
+            .Replace("{{loginLink}}", loginLink);
 
     /// <summary>Szablon resetu hasła – placeholdery: {{firstName}}, {{resetLink}}</summary>
     public static string PasswordReset(string firstName, string resetLink) =>

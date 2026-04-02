@@ -9,11 +9,12 @@ namespace Application.Tests;
 public class GroupServiceTests
 {
     private readonly Mock<IGroupRepository> _groupRepo = new();
+    private readonly Mock<IUserService> _userService = new();
     private readonly GroupService _sut;
 
     public GroupServiceTests()
     {
-        _sut = new GroupService(_groupRepo.Object);
+        _sut = new GroupService(_groupRepo.Object, _userService.Object);
     }
 
     [Fact]
@@ -56,5 +57,34 @@ public class GroupServiceTests
 
         Assert.NotNull(result);
         Assert.Equal("Admins", result!.Name);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpdatesNameAndMembers()
+    {
+        var group = new Group
+        {
+            Id = 10,
+            Name = "Old",
+            Users = new List<User>
+            {
+                new() { Id = 1, Name = "A", Surname = "B", Email = "a@x.com", IsActive = true, CreatedAt = DateTime.UtcNow }
+            }
+        };
+
+        _groupRepo.Setup(r => r.GetByIdWithUsersAsync(10)).ReturnsAsync(group);
+        _userService.Setup(s => s.GetByIdsAsync(It.Is<IEnumerable<int>>(ids => ids.SequenceEqual(new[] { 2, 3 })))).ReturnsAsync(new List<User>
+        {
+            new() { Id = 2, Name = "Jan", Surname = "Nowak", Email = "jan@mail.com", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new() { Id = 3, Name = "Anna", Surname = "Kowal", Email = "anna@mail.com", IsActive = true, CreatedAt = DateTime.UtcNow }
+        });
+
+        var updated = await _sut.UpdateAsync(10, "New Name", new List<int> { 2, 3, 3 });
+
+        Assert.NotNull(updated);
+        Assert.Equal("New Name", updated!.Name);
+        Assert.Equal(2, updated.Users.Count);
+        _groupRepo.Verify(r => r.Update(group), Times.Once);
+        _groupRepo.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
 }

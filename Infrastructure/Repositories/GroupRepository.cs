@@ -37,4 +37,19 @@ public class GroupRepository : BaseRepository<Group>, IGroupRepository
             .Take(limit)
             .ToListAsync();
     }
+
+    public async Task<List<Group>> GetAllWithUsersAsync()
+    {
+        return await Context.Groups
+            .Include(g => g.Users)
+            .OrderBy(g => g.Name)
+            .ToListAsync();
+    }
+
+    public async Task<Group?> GetByIdWithUsersAsync(int id)
+    {
+        return await Context.Groups
+            .Include(g => g.Users)
+            .FirstOrDefaultAsync(g => g.Id == id);
+    }
 }

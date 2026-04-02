@@ -7,4 +7,6 @@ public class RecipientDto
     public string DisplayName { get; set; }
     public string? Subtitle { get; set; }
     public string? Email { get; set; }
+    public bool? IsRead { get; set; }
+    public DateTime? ReadAt { get; set; }
 }

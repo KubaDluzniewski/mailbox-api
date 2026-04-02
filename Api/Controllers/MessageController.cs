@@ -143,7 +143,9 @@ public class MessageController : ControllerBase
                     Id = r.RecipientEntityId,
                     Type = "user",
                     DisplayName = user?.FullName() ?? "Unknown",
-                    Subtitle = user?.Email ?? ""
+                    Subtitle = user?.Email ?? "",
+                    IsRead = r.IsRead,
+                    ReadAt = r.ReadAt
                 };
             }).ToList(),
             Attachments = m.Attachments.Select(a => new AttachmentDto
@@ -396,7 +398,9 @@ public class MessageController : ControllerBase
                     Id = r.RecipientEntityId,
                     Type = "user",
                     DisplayName = user?.FullName() ?? "Unknown",
-                    Subtitle = user?.Email ?? ""
+                    Subtitle = user?.Email ?? "",
+                    IsRead = r.IsRead,
+                    ReadAt = r.ReadAt
                 };
             }).ToList(),
             Attachments = m.Attachments.Select(a => new AttachmentDto

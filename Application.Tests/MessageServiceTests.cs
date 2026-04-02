@@ -2,6 +2,7 @@ using Application.DTOs;
 using Application.Interfaces;
 using Application.Services;
 using Core.Entity;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using Xunit;
 
@@ -13,11 +14,13 @@ public class MessageServiceTests
     private readonly Mock<IUserService> _userService = new();
     private readonly Mock<IEmailService> _emailService = new();
     private readonly Mock<IGroupRepository> _groupRepo = new();
+    private readonly Mock<IConfiguration> _configuration = new();
     private readonly MessageService _sut;
 
     public MessageServiceTests()
     {
-        _sut = new MessageService(_messageRepo.Object, _userService.Object, _emailService.Object, _groupRepo.Object);
+        _configuration.Setup(c => c["App:FrontendUrl"]).Returns("http://localhost:5173");
+        _sut = new MessageService(_messageRepo.Object, _userService.Object, _emailService.Object, _groupRepo.Object, _configuration.Object);
     }
 
     [Fact]
@@ -90,6 +93,77 @@ public class MessageServiceTests
         Assert.Equal(2, savedMessage!.Recipients.Count);
         _emailService.Verify(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         _messageRepo.Verify(r => r.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendMessages_UsesLoginLinkInNotificationEmail()
+    {
+        var sender = CreateUser(1, email: "sender@mail.com");
+        var directUser = CreateUser(2, email: "u2@mail.com");
+
+        var dto = new SendMessageDto
+        {
+            Subject = "Temat",
+            Body = "<b>Tresc</b>",
+            Recipients = new List<RecipientDto> { new() { Id = 2, Type = "user", DisplayName = "User 2" } }
+        };
+
+        _userService.Setup(s => s.GetByIdAsync(1)).ReturnsAsync(sender);
+        _userService.Setup(s => s.GetByIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new List<User> { directUser });
+        _messageRepo.Setup(r => r.AddAsync(It.IsAny<Message>())).Returns(Task.CompletedTask);
+
+        await _sut.SendMessages(dto, 1, CancellationToken.None);
+
+        _emailService.Verify(e => e.SendEmailAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.Is<string>(html => html.Contains("http://localhost:5173/login")),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendMessages_ReusesDraftAttachments_WhenNoNewFilesProvided()
+    {
+        var sender = CreateUser(1, email: "sender@mail.com");
+        var directUser = CreateUser(2, email: "u2@mail.com");
+
+        var dto = new SendMessageDto
+        {
+            Id = 77,
+            Subject = "Temat",
+            Body = "Tresc",
+            Recipients = new List<RecipientDto> { new() { Id = 2, Type = "user", DisplayName = "User 2" } }
+        };
+
+        _userService.Setup(s => s.GetByIdAsync(1)).ReturnsAsync(sender);
+        _userService.Setup(s => s.GetByIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new List<User> { directUser });
+        _messageRepo.Setup(r => r.GetDraftWithRecipientsAsync(77)).ReturnsAsync(new Message
+        {
+            Id = 77,
+            IsDraft = true,
+            SenderId = 1,
+            Subject = "Draft",
+            Body = "Draft body",
+            Attachments = new List<MessageAttachment>
+            {
+                new() { FileName = "x.txt", ContentType = "text/plain", FileSize = 1, Data = new byte[] { 1 } }
+            }
+        });
+
+        Message? savedMessage = null;
+        _messageRepo.Setup(r => r.AddAsync(It.IsAny<Message>()))
+            .Callback<Message>(m => savedMessage = m)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.SendMessages(dto, 1, CancellationToken.None, null);
+
+        Assert.True(result);
+        Assert.NotNull(savedMessage);
+        Assert.Single(savedMessage!.Attachments);
+        Assert.Equal("x.txt", savedMessage.Attachments.First().FileName);
     }
 
     [Fact]
