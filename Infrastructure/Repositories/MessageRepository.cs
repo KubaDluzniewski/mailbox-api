@@ -100,4 +100,12 @@ public class MessageRepository : BaseRepository<Message>, IMessageRepository
         return await Context.Set<MessageAttachment>()
             .FirstOrDefaultAsync(a => a.MessageId == messageId && a.Id == attachmentId);
     }
+
+    public async Task<bool> UserHasAccessToMessageAsync(int messageId, int userId)
+    {
+        return await Context.Set<Message>()
+            .AnyAsync(m => m.Id == messageId && !m.IsDraft &&
+                (m.SenderId == userId ||
+                 m.Recipients.Any(r => r.RecipientEntityId == userId && r.RecipientType == RecipientType.User)));
+    }
 }
