@@ -60,4 +60,12 @@ public interface IMessageRepository : IRepository<Message>
     /// </summary>
     /// <returns></returns>
     Task<List<Message>> GetAllMessagesAsync();
+
+    /// <summary>
+    ///     Pobiera załącznik wiadomości
+    /// </summary>
+    /// <param name="messageId"></param>
+    /// <param name="attachmentId"></param>
+    /// <returns></returns>
+    Task<MessageAttachment?> GetAttachmentAsync(int messageId, int attachmentId);
 }
