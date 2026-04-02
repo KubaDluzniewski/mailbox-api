@@ -16,7 +16,7 @@ public class AuthServiceTests
     private readonly Mock<IConfiguration> _mockConfiguration;
     private readonly Mock<IRepository<UserCredential>> _mockCredentialRepo;
     private readonly Mock<IUserRepository> _mockUserRepo;
-    private readonly Mock<ISesEmailService> _mockEmailService;
+    private readonly Mock<IEmailService> _mockEmailService;
     private readonly Mock<IUserActivationTokenRepository> _mockTokenRepo;
     private readonly AuthService _authService;
 
@@ -27,7 +27,7 @@ public class AuthServiceTests
         _mockConfiguration = new Mock<IConfiguration>();
         _mockCredentialRepo = new Mock<IRepository<UserCredential>>();
         _mockUserRepo = new Mock<IUserRepository>();
-        _mockEmailService = new Mock<ISesEmailService>();
+        _mockEmailService = new Mock<IEmailService>();
         _mockTokenRepo = new Mock<IUserActivationTokenRepository>();
 
         // Setup JWT configuration
@@ -232,7 +232,7 @@ public class AuthServiceTests
         _mockEmailService.Verify(e => e.SendEmailAsync(
             It.IsAny<string>(),
             user.Email,
-            "Potwierdzenie konta",
+            It.Is<string>(s => s.Contains("Mailbox")),
             It.Is<string>(body => body.Contains("Aktywuj konto")),
             It.IsAny<CancellationToken>()
         ), Times.Once);

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mailbox</title>
+  <style>
+    body { margin:0; padding:0; background:#f4f6fb; font-family:'Segoe UI',Arial,Helvetica,sans-serif; }
+    .wrapper { max-width:600px; margin:32px auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,.08); }
+    .header { background:linear-gradient(135deg,#1a73e8 0%,#0d47a1 100%); padding:32px 40px; text-align:center; }
+    .header-logo { color:#fff; font-size:28px; font-weight:700; letter-spacing:1px; text-decoration:none; }
+    .header-logo span { color:#90caf9; }
+    .body { padding:40px 40px 32px; color:#222; }
+    .greeting { font-size:22px; font-weight:600; margin-bottom:12px; color:#1a1a2e; }
+    .text { font-size:15px; line-height:1.7; color:#444; margin-bottom:24px; }
+    .btn { display:inline-block; background:linear-gradient(135deg,#1a73e8,#0d47a1); color:#fff !important; text-decoration:none; padding:14px 36px; border-radius:8px; font-size:15px; font-weight:600; letter-spacing:.3px; }
+    .btn-wrap { text-align:center; margin:28px 0; }
+    .divider { border:none; border-top:1px solid #e8eaf0; margin:28px 0; }
+    .note { font-size:13px; color:#888; line-height:1.6; }
+    .footer { background:#f8f9fc; padding:20px 40px; text-align:center; font-size:12px; color:#aaa; border-top:1px solid #e8eaf0; }
+    .footer strong { color:#1a73e8; }
+  </style>
+</head>
+<body>
+  <div style="display:none;max-height:0;overflow:hidden;">Witaj w Mailbox! Kliknij, aby aktywować swoje konto.</div>
+  <div class="wrapper">
+    <div class="header">
+      <a class="header-logo" href="#">Mail<span>box</span></a>
+    </div>
+    <div class="body">
+      <div class="greeting">Cześć, {{firstName}}! 👋</div>
+      <p class="text">
+        Dziękujemy za rejestrację w <strong>Mailbox</strong>.<br/>
+        Twoje konto zostało utworzone i czeka na aktywację.
+        Kliknij poniższy przycisk, aby potwierdzić adres e-mail i zacząć korzystać z aplikacji.
+      </p>
+      <div class="btn-wrap">
+        <a class="btn" href="{{activationLink}}">Aktywuj konto</a>
+      </div>
+      <hr class="divider"/>
+      <p class="note">
+        Link jest ważny przez <strong>24 godziny</strong>.<br/>
+        Jeśli nie zakładałeś konta w Mailbox, zignoruj tę wiadomość.
+      </p>
+    </div>
+    <div class="footer">
+      Wysłano przy użyciu <strong>Mailbox</strong> &bull; Nie odpowiadaj na tę wiadomość.
+    </div>
+  </div>
+</body>
+</html>

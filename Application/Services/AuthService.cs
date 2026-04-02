@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Application.DTOs;
+using Application.Email;
 using Application.Interfaces;
 using AutoMapper;
 using Core.Entity;
@@ -21,7 +22,7 @@ public class AuthService : IAuthService
     private readonly string _frontendUrl;
     private readonly IRepository<UserCredential> _userCredentialRepository;
     private readonly IUserRepository _userRepository;
-    private readonly ISesEmailService _emailService;
+    private readonly IEmailService _emailService;
     private readonly IUserActivationTokenRepository _userActivationTokenRepository;
 
     public AuthService(
@@ -30,7 +31,7 @@ public class AuthService : IAuthService
         IConfiguration configuration,
         IRepository<UserCredential> userCredentialRepository,
         IUserRepository userRepository,
-        ISesEmailService emailService,
+        IEmailService emailService,
         IUserActivationTokenRepository userActivationTokenRepository)
     {
         _userService = userService;
@@ -104,9 +105,9 @@ public class AuthService : IAuthService
         await _userActivationTokenRepository.SaveChangesAsync();
 
         var confirmationLink = $"{_frontendUrl}/confirm?token={activationToken}&email={email}";
-        var subject = "Potwierdzenie konta";
-        var htmlBody = $"<p>Kliknij link, aby aktywować konto: <a href='{confirmationLink}'>Aktywuj konto</a></p>";
-        await _emailService.SendEmailAsync("Mailbox", email, subject, htmlBody);
+        var subject = "Witaj w Mailbox – potwierdź swoje konto";
+        var htmlBody = EmailTemplates.AccountCreated(user.Name, confirmationLink);
+        await _emailService.SendEmailAsync(user.Name, email, subject, htmlBody);
         return true;
     }
 
@@ -147,10 +148,10 @@ public class AuthService : IAuthService
         await _userActivationTokenRepository.SaveChangesAsync();
 
         var confirmationLink = $"{_frontendUrl}/confirm?token={token}&email={newEmail}";
-        var subject = "Potwierdź zmianę adresu email";
-        var htmlBody = $"<p>Kliknij link, aby potwierdzić zmianę adresu email: <a href='{confirmationLink}'>Zmień email</a></p>";
+        var subject = "Potwierdź zmianę adresu e-mail – Mailbox";
+        var htmlBody = EmailTemplates.EmailChange(user.Name, confirmationLink);
 
-        await _emailService.SendEmailAsync("Mailbox", newEmail, subject, htmlBody);
+        await _emailService.SendEmailAsync(user.Name, newEmail, subject, htmlBody);
         return true;
     }
 
@@ -216,14 +217,14 @@ public class AuthService : IAuthService
         var encodedToken = System.Net.WebUtility.UrlEncode(token);
 
         var resetLink = $"{_frontendUrl}/reset-password?token={encodedToken}&email={encodedEmail}";
-        var subject = "Reset hasła";
-        var htmlBody = $"<p>Kliknij link, aby zresetować hasło: <a href='{resetLink}'>Zresetuj hasło</a></p>";
+        var subject = "Reset hasła – Mailbox";
+        var htmlBody = EmailTemplates.PasswordReset(user.Name, resetLink);
 
         Console.WriteLine($"[ForgotPassword] Generated link: {resetLink}");
 
         try
         {
-            await _emailService.SendEmailAsync("Mailbox", email, subject, htmlBody);
+            await _emailService.SendEmailAsync(user.Name, email, subject, htmlBody);
         }
         catch (Exception ex)
         {

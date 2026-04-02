@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Application.DTOs;
+using Application.Email;
 using Application.Interfaces;
 using Core.Entity;
 using Microsoft.AspNetCore.Http;
@@ -16,10 +17,10 @@ namespace Application.Services
     {
         private readonly IMessageRepository _messageRepository;
         private readonly IUserService _userService;
-        private readonly ISesEmailService _sesEmailService;
+        private readonly IEmailService _sesEmailService;
         private readonly IGroupRepository _groupRepository;
 
-        public MessageService(IMessageRepository messageRepository, IUserService userService, ISesEmailService sesEmailService, IGroupRepository groupRepository)
+        public MessageService(IMessageRepository messageRepository, IUserService userService, IEmailService sesEmailService, IGroupRepository groupRepository)
         {
             _messageRepository = messageRepository;
             _userService = userService;
@@ -66,18 +67,17 @@ namespace Application.Services
                 {
                     if (string.IsNullOrWhiteSpace(user.Email)) continue;
 
-                    await _sesEmailService.SendEmailAsync(
+                    var subject = $"Nowa wiadomość od {userDb.FullName()}: {dto.Subject}";
+                    var htmlBody = EmailTemplates.NewMessageNotification(
+                        user.Name,
                         userDb.FullName(),
-                        user.Email!,
                         dto.Subject,
-                        dto.Body + @"<br/><hr style=""border:none; border-top:1px solid #e0e0e0; margin:20px 0;"">
-<table role=""presentation"" cellpadding=""0"" cellspacing=""0"" style=""font-family:Arial, Helvetica, sans-serif; font-size:12px; color:#666; width:100%;"">
-  <tr>
-    <td align=""center"" style=""padding-top:4px;"">
-      Wysłano przy użyciu aplikacji <strong style=""color:#1a73e8;"">Mailbox</strong>
-    </td>
-  </tr>
-</table>",
+                        dto.Body);
+                    await _sesEmailService.SendEmailAsync(
+                        user.Name,
+                        user.Email!,
+                        subject,
+                        htmlBody,
                         cancellationToken
                     );
                 }

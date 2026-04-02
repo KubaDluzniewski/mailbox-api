@@ -1,6 +1,3 @@
-﻿using Amazon;
-using Amazon.Runtime;
-using Amazon.SimpleEmailV2;
 using Application.Interfaces;
 using Infrastructure.Persistence;
 using Infrastructure.Repositories;
@@ -24,20 +21,6 @@ public static class DependencyInjection
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IGroupRepository, GroupRepository>();
         services.AddScoped<IUserActivationTokenRepository, UserActivationTokenRepository>();
-
-        // AWS SES client
-        var awsSection = configuration.GetSection("AWS");
-        var regionName = awsSection["Region"] ?? "eu-central-1";
-        var accessKey = awsSection["AccessKey"];
-        var secretKey = awsSection["SecretKey"];
-
-        services.AddSingleton<IAmazonSimpleEmailServiceV2>(_ =>
-        {
-            var region = RegionEndpoint.GetBySystemName(regionName);
-            if (!string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey))
-                return new AmazonSimpleEmailServiceV2Client(new BasicAWSCredentials(accessKey, secretKey), region);
-            return new AmazonSimpleEmailServiceV2Client(region);
-        });
 
         return services;
     }
