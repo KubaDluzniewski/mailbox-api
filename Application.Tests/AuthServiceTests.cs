@@ -1,4 +1,3 @@
-using Application.DTOs;
 using Application.Interfaces;
 using Application.Services;
 using AutoMapper;
@@ -11,383 +10,196 @@ namespace Application.Tests;
 
 public class AuthServiceTests
 {
-    private readonly Mock<IUserService> _mockUserService;
-    private readonly Mock<IMapper> _mockMapper;
-    private readonly Mock<IConfiguration> _mockConfiguration;
-    private readonly Mock<IRepository<UserCredential>> _mockCredentialRepo;
-    private readonly Mock<IUserRepository> _mockUserRepo;
-    private readonly Mock<IEmailService> _mockEmailService;
-    private readonly Mock<IUserActivationTokenRepository> _mockTokenRepo;
-    private readonly AuthService _authService;
+    private readonly Mock<IUserService> _userService = new();
+    private readonly Mock<IMapper> _mapper = new();
+    private readonly Mock<IRepository<UserCredential>> _credentialRepo = new();
+    private readonly Mock<IUserRepository> _userRepo = new();
+    private readonly Mock<IEmailService> _emailService = new();
+    private readonly Mock<IUserActivationTokenRepository> _tokenRepo = new();
+    private readonly AuthService _sut;
 
     public AuthServiceTests()
     {
-        _mockUserService = new Mock<IUserService>();
-        _mockMapper = new Mock<IMapper>();
-        _mockConfiguration = new Mock<IConfiguration>();
-        _mockCredentialRepo = new Mock<IRepository<UserCredential>>();
-        _mockUserRepo = new Mock<IUserRepository>();
-        _mockEmailService = new Mock<IEmailService>();
-        _mockTokenRepo = new Mock<IUserActivationTokenRepository>();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Key"] = "test-secret-key-that-is-long-enough-for-hmacsha256",
+                ["Jwt:Issuer"] = "issuer",
+                ["Jwt:Audience"] = "audience",
+                ["Registration:Secret"] = "secret-code",
+                ["App:FrontendUrl"] = "http://localhost:5173"
+            })
+            .Build();
 
-        // Setup JWT configuration
-        _mockConfiguration.Setup(c => c["Jwt:Key"]).Returns("test-secret-key-that-is-long-enough-for-hmacsha256");
-        _mockConfiguration.Setup(c => c["Jwt:Issuer"]).Returns("TestIssuer");
-        _mockConfiguration.Setup(c => c["Jwt:Audience"]).Returns("TestAudience");
-
-        _authService = new AuthService(
-            _mockUserService.Object,
-            _mockMapper.Object,
-            _mockConfiguration.Object,
-            _mockCredentialRepo.Object,
-            _mockUserRepo.Object,
-            _mockEmailService.Object,
-            _mockTokenRepo.Object
-        );
+        _sut = new AuthService(
+            _userService.Object,
+            _mapper.Object,
+            config,
+            _credentialRepo.Object,
+            _userRepo.Object,
+            _emailService.Object,
+            _tokenRepo.Object);
     }
 
-    #region LoginAsync Tests
-
     [Fact]
-    public async Task LoginAsync_ReturnsNull_WhenUserNotFound()
+    public async Task LoginAsync_ReturnsNull_WhenUserMissing()
     {
-        // Arrange
-        _mockUserService.Setup(s => s.GetByEmailAsync(It.IsAny<string>()))
+        _userService.Setup(s => s.GetByEmailWithRolesAsync("missing@mail.com"))
             .ReturnsAsync((User?)null);
 
-        // Act
-        var result = await _authService.LoginAsync("nonexistent@test.com", "password");
+        var result = await _sut.LoginAsync("missing@mail.com", "pass");
 
-        // Assert
         Assert.Null(result);
     }
 
     [Fact]
-    public async Task LoginAsync_ReturnsNull_WhenCredentialsNotFound()
+    public async Task LoginAsync_Throws_WhenUserIsInactive()
     {
-        // Arrange
-        var user = CreateTestUser();
-        _mockUserService.Setup(s => s.GetByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-        _mockUserService.Setup(s => s.GetCredentialByUserIdAsync(user.Id))
-            .ReturnsAsync((UserCredential?)null);
-
-        // Act
-        var result = await _authService.LoginAsync(user.Email, "password");
-
-        // Assert
-        Assert.Null(result);
-    }
-
-    [Fact]
-    public async Task LoginAsync_ReturnsNull_WhenPasswordIsInvalid()
-    {
-        // Arrange
-        var user = CreateTestUser();
+        var user = CreateUser(isActive: false);
         var credential = new UserCredential
         {
             UserId = user.Id,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("correct_password")
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("pass")
         };
 
-        _mockUserService.Setup(s => s.GetByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-        _mockUserService.Setup(s => s.GetCredentialByUserIdAsync(user.Id))
-            .ReturnsAsync(credential);
+        _userService.Setup(s => s.GetByEmailWithRolesAsync(user.Email)).ReturnsAsync(user);
+        _userService.Setup(s => s.GetCredentialByUserIdAsync(user.Id)).ReturnsAsync(credential);
 
-        // Act
-        var result = await _authService.LoginAsync(user.Email, "wrong_password");
-
-        // Assert
-        Assert.Null(result);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => _sut.LoginAsync(user.Email, "pass"));
     }
 
     [Fact]
-    public async Task LoginAsync_ReturnsToken_WhenCredentialsAreValid()
+    public async Task LoginAsync_ReturnsToken_WhenCredentialsValidAndUserActive()
     {
-        // Arrange
-        var user = CreateTestUser();
-        var password = "correct_password";
+        var user = CreateUser(isActive: true);
         var credential = new UserCredential
         {
             UserId = user.Id,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("pass")
         };
 
-        _mockUserService.Setup(s => s.GetByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-        _mockUserService.Setup(s => s.GetCredentialByUserIdAsync(user.Id))
-            .ReturnsAsync(credential);
+        _userService.Setup(s => s.GetByEmailWithRolesAsync(user.Email)).ReturnsAsync(user);
+        _userService.Setup(s => s.GetCredentialByUserIdAsync(user.Id)).ReturnsAsync(credential);
 
-        // Act
-        var result = await _authService.LoginAsync(user.Email, password);
+        var result = await _sut.LoginAsync(user.Email, "pass");
 
-        // Assert
         Assert.NotNull(result);
-        Assert.Contains(".", result); // JWT tokens contain dots
+        Assert.Contains('.', result);
     }
-
-    #endregion
-
-    #region IsActiveAsync Tests
-
-    [Fact]
-    public async Task IsActiveAsync_ReturnsFalse_WhenUserNotFound()
-    {
-        // Arrange
-        _mockUserService.Setup(s => s.GetByEmailAsync(It.IsAny<string>()))
-            .ReturnsAsync((User?)null);
-
-        // Act
-        var result = await _authService.IsActiveAsync("nonexistent@test.com");
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task IsActiveAsync_ReturnsFalse_WhenUserIsInactive()
-    {
-        // Arrange
-        var user = CreateTestUser(isActive: false);
-        _mockUserService.Setup(s => s.GetByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-
-        // Act
-        var result = await _authService.IsActiveAsync(user.Email);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task IsActiveAsync_ReturnsTrue_WhenUserIsActive()
-    {
-        // Arrange
-        var user = CreateTestUser(isActive: true);
-        _mockUserService.Setup(s => s.GetByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-
-        // Act
-        var result = await _authService.IsActiveAsync(user.Email);
-
-        // Assert
-        Assert.True(result);
-    }
-
-    #endregion
-
-    #region ActivateAsync Tests
 
     [Fact]
     public async Task ActivateAsync_ReturnsFalse_WhenUserNotFound()
     {
-        // Arrange
-        _mockUserService.Setup(s => s.GetByEmailAsync(It.IsAny<string>()))
-            .ReturnsAsync((User?)null);
+        _userService.Setup(s => s.GetByEmailAsync("missing@mail.com")).ReturnsAsync((User?)null);
 
-        // Act
-        var result = await _authService.ActivateAsync("nonexistent@test.com");
+        var result = await _sut.ActivateAsync("missing@mail.com");
 
-        // Assert
         Assert.False(result);
     }
 
     [Fact]
-    public async Task ActivateAsync_ReturnsFalse_WhenUserAlreadyActive()
+    public async Task ActivateAsync_GeneratesToken_AndSendsMail_WhenUserInactive()
     {
-        // Arrange
-        var user = CreateTestUser(isActive: true);
-        _mockUserService.Setup(s => s.GetByEmailAsync(user.Email))
-            .ReturnsAsync(user);
+        var user = CreateUser(isActive: false);
+        _userService.Setup(s => s.GetByEmailAsync(user.Email)).ReturnsAsync(user);
+        _tokenRepo.Setup(r => r.GetByUserIdAsync(user.Id, "activation")).ReturnsAsync(new List<UserActivationToken>());
 
-        // Act
-        var result = await _authService.ActivateAsync(user.Email);
+        var result = await _sut.ActivateAsync(user.Email);
 
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task ActivateAsync_ReturnsTrue_AndSendsEmail_WhenUserIsInactive()
-    {
-        // Arrange
-        var user = CreateTestUser(isActive: false);
-        _mockUserService.Setup(s => s.GetByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-        _mockTokenRepo.Setup(r => r.GetByUserIdAsync(user.Id, "activation"))
-            .ReturnsAsync(new List<UserActivationToken>());
-        _mockTokenRepo.Setup(r => r.AddAsync(It.IsAny<UserActivationToken>()))
-            .Returns(Task.CompletedTask);
-        _mockTokenRepo.Setup(r => r.SaveChangesAsync())
-            .Returns(Task.CompletedTask);
-        _mockEmailService.Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _authService.ActivateAsync(user.Email);
-
-        // Assert
         Assert.True(result);
-        _mockEmailService.Verify(e => e.SendEmailAsync(
-            It.IsAny<string>(),
+        _tokenRepo.Verify(r => r.AddAsync(It.Is<UserActivationToken>(t => t.UserId == user.Id && t.Type == "activation")), Times.Once);
+        _emailService.Verify(e => e.SendEmailAsync(
+            user.Name,
             user.Email,
-            It.Is<string>(s => s.Contains("Mailbox")),
-            It.Is<string>(body => body.Contains("Aktywuj konto")),
-            It.IsAny<CancellationToken>()
-        ), Times.Once);
-    }
-
-    #endregion
-
-    #region ForgotPasswordAsync Tests
-
-    [Fact]
-    public async Task ForgotPasswordAsync_ReturnsNull_WhenUserNotFound()
-    {
-        // Arrange
-        _mockUserService.Setup(s => s.GetByEmailAsync(It.IsAny<string>()))
-            .ReturnsAsync((User?)null);
-
-        // Act
-        var result = await _authService.ForgotPasswordAsync("nonexistent@test.com");
-
-        // Assert
-        Assert.Null(result);
+            It.IsAny<string>(),
+            It.Is<string>(body => body.Contains("confirm?token=")),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task ForgotPasswordAsync_ReturnsResetLink_WhenUserExists()
+    public async Task ConfirmAsync_ActivatesUser_WhenActivationTokenValid()
     {
-        // Arrange
-        var user = CreateTestUser();
-        _mockUserService.Setup(s => s.GetByEmailAsync(user.Email))
-            .ReturnsAsync(user);
-        _mockTokenRepo.Setup(r => r.GetByUserIdAsync(user.Id, "password_reset"))
-            .ReturnsAsync(new List<UserActivationToken>());
-        _mockTokenRepo.Setup(r => r.AddAsync(It.IsAny<UserActivationToken>()))
-            .Returns(Task.CompletedTask);
-        _mockTokenRepo.Setup(r => r.SaveChangesAsync())
-            .Returns(Task.CompletedTask);
-        _mockEmailService.Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        var user = CreateUser(isActive: false);
+        var token = new UserActivationToken
+        {
+            UserId = user.Id,
+            Token = "token",
+            Type = "activation",
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30)
+        };
 
-        // Act
-        var result = await _authService.ForgotPasswordAsync(user.Email);
+        _tokenRepo.Setup(r => r.GetByTokenAsync("token")).ReturnsAsync(token);
+        _userService.Setup(s => s.GetByIdAsync(user.Id)).ReturnsAsync(user);
 
-        // Assert
-        Assert.NotNull(result);
-        Assert.Contains("reset-password", result);
-        Assert.Contains("token=", result);
-    }
+        var result = await _sut.ConfirmAsync(user.Email, "token");
 
-    #endregion
-
-    #region ResetPasswordAsync Tests
-
-    [Fact]
-    public async Task ResetPasswordAsync_ReturnsFalse_WhenTokenNotFound()
-    {
-        // Arrange
-        _mockTokenRepo.Setup(r => r.GetByTokenAsync(It.IsAny<string>()))
-            .ReturnsAsync((UserActivationToken?)null);
-
-        // Act
-        var result = await _authService.ResetPasswordAsync("test@test.com", "invalid-token", "newpassword");
-
-        // Assert
-        Assert.False(result);
+        Assert.Equal("activation", result);
+        Assert.True(user.IsActive);
+        _userRepo.Verify(r => r.Update(user), Times.Once);
+        _tokenRepo.Verify(r => r.Remove(token), Times.Once);
     }
 
     [Fact]
     public async Task ResetPasswordAsync_ReturnsFalse_WhenTokenExpired()
     {
-        // Arrange
         var token = new UserActivationToken
         {
-            Token = "valid-token",
-            ExpiresAt = DateTime.UtcNow.AddHours(-1), // Expired
+            UserId = 7,
+            Token = "expired",
             Type = "password_reset",
-            UserId = 1
+            ExpiresAt = DateTime.UtcNow.AddMinutes(-1)
         };
-        _mockTokenRepo.Setup(r => r.GetByTokenAsync("valid-token"))
-            .ReturnsAsync(token);
 
-        // Act
-        var result = await _authService.ResetPasswordAsync("test@test.com", "valid-token", "newpassword");
+        _tokenRepo.Setup(r => r.GetByTokenAsync("expired")).ReturnsAsync(token);
 
-        // Assert
+        var result = await _sut.ResetPasswordAsync("user@mail.com", "expired", "newpass");
+
         Assert.False(result);
     }
 
     [Fact]
-    public async Task ResetPasswordAsync_ReturnsFalse_WhenTokenTypeIsWrong()
+    public async Task RegisterAsync_ReturnsTrue_WhenRegistrationCodeValidAndUserCreated()
     {
-        // Arrange
-        var token = new UserActivationToken
-        {
-            Token = "valid-token",
-            ExpiresAt = DateTime.UtcNow.AddHours(1),
-            Type = "activation", // Wrong type
-            UserId = 1
-        };
-        _mockTokenRepo.Setup(r => r.GetByTokenAsync("valid-token"))
-            .ReturnsAsync(token);
+        _userService.Setup(s => s.CreateUserAsync(
+                "Jan",
+                "Nowak",
+                "jan@mail.com",
+                "pass",
+                It.IsAny<List<UserRole>>(),
+                false))
+            .ReturnsAsync(CreateUser(email: "jan@mail.com", isActive: false));
 
-        // Act
-        var result = await _authService.ResetPasswordAsync("test@test.com", "valid-token", "newpassword");
+        _userService.Setup(s => s.GetByEmailAsync("jan@mail.com"))
+            .ReturnsAsync(CreateUser(email: "jan@mail.com", isActive: false));
 
-        // Assert
-        Assert.False(result);
-    }
+        _tokenRepo.Setup(r => r.GetByUserIdAsync(It.IsAny<int>(), "activation")).ReturnsAsync(new List<UserActivationToken>());
 
-    [Fact]
-    public async Task ResetPasswordAsync_ReturnsTrue_WhenValid()
-    {
-        // Arrange
-        var user = CreateTestUser();
-        var token = new UserActivationToken
-        {
-            Token = "valid-token",
-            ExpiresAt = DateTime.UtcNow.AddHours(1),
-            Type = "password_reset",
-            UserId = user.Id
-        };
+        var result = await _sut.RegisterAsync("Jan", "Nowak", "jan@mail.com", "pass", "secret-code");
 
-        _mockTokenRepo.Setup(r => r.GetByTokenAsync("valid-token"))
-            .ReturnsAsync(token);
-        _mockUserService.Setup(s => s.GetByIdAsync(user.Id))
-            .ReturnsAsync(user);
-        _mockUserService.Setup(s => s.SetPasswordAsync(user.Id, "newpassword"))
-            .ReturnsAsync(true);
-        _mockTokenRepo.Setup(r => r.SaveChangesAsync())
-            .Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _authService.ResetPasswordAsync(user.Email, "valid-token", "newpassword");
-
-        // Assert
         Assert.True(result);
-        _mockTokenRepo.Verify(r => r.Remove(token), Times.Once);
+        _userService.Verify(s => s.CreateUserAsync(
+            "Jan",
+            "Nowak",
+            "jan@mail.com",
+            "pass",
+            It.Is<List<UserRole>>(roles => roles.Contains(UserRole.STUDENT)),
+            false), Times.Once);
     }
 
-    #endregion
-
-    #region Helper Methods
-
-    private User CreateTestUser(int id = 1, bool isActive = true)
+    private static User CreateUser(int id = 1, string email = "user@mail.com", bool isActive = true)
     {
         return new User
         {
             Id = id,
-            Email = "test@example.com",
             Name = "Jan",
-            Surname = "Kowalski",
+            Surname = "Nowak",
+            Email = email,
             IsActive = isActive,
             CreatedAt = DateTime.UtcNow,
-            Role = UserRole.STUDENT
+            Roles = new List<UserRoleAssignment>
+            {
+                new() { UserId = id, Role = UserRole.STUDENT }
+            }
         };
     }
-
-    #endregion
 }

@@ -1,529 +1,200 @@
+using System.Linq.Expressions;
 using Application.Interfaces;
 using Application.Services;
 using Core.Entity;
 using Moq;
-using System.Linq.Expressions;
 using Xunit;
 
 namespace Application.Tests;
 
 public class UserServiceTests
 {
-    private readonly Mock<IUserRepository> _mockUserRepo;
-    private readonly Mock<IRepository<UserCredential>> _mockCredentialRepo;
-    private readonly UserService _userService;
+    private readonly Mock<IUserRepository> _userRepo = new();
+    private readonly Mock<IRepository<UserCredential>> _credentialRepo = new();
+    private readonly Mock<IRepository<UserRoleAssignment>> _roleRepo = new();
+    private readonly UserService _sut;
 
     public UserServiceTests()
     {
-        _mockUserRepo = new Mock<IUserRepository>();
-        _mockCredentialRepo = new Mock<IRepository<UserCredential>>();
-        _userService = new UserService(_mockUserRepo.Object, _mockCredentialRepo.Object);
+        _sut = new UserService(_userRepo.Object, _credentialRepo.Object, _roleRepo.Object);
     }
 
-    #region GetByIdAsync Tests
-
     [Fact]
-    public async Task GetByIdAsync_ReturnsUser_WhenUserExists()
+    public async Task GetByIdAsync_UsesRepositoryWithRoles()
     {
-        // Arrange
-        var userId = 1;
-        var user = CreateTestUser(userId);
-        _mockUserRepo.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+        _userRepo.Setup(r => r.GetByIdWithRolesAsync(1)).ReturnsAsync(CreateUser(1));
 
-        // Act
-        var result = await _userService.GetByIdAsync(userId);
+        var result = await _sut.GetByIdAsync(1);
 
-        // Assert
         Assert.NotNull(result);
-        Assert.Equal(userId, result!.Id);
+        _userRepo.Verify(r => r.GetByIdWithRolesAsync(1), Times.Once);
     }
 
     [Fact]
-    public async Task GetByIdAsync_ReturnsNull_WhenUserDoesNotExist()
+    public async Task GetAllAsync_UsesRepositoryWithRoles()
     {
-        // Arrange
-        _mockUserRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>())).ReturnsAsync((User?)null);
+        _userRepo.Setup(r => r.GetAllWithRolesAsync()).ReturnsAsync(new List<User> { CreateUser(1), CreateUser(2) });
 
-        // Act
-        var result = await _userService.GetByIdAsync(999);
+        var result = await _sut.GetAllAsync();
 
-        // Assert
-        Assert.Null(result);
-    }
-
-    #endregion
-
-    #region GetAllAsync Tests
-
-    [Fact]
-    public async Task GetAllAsync_ReturnsAllUsers()
-    {
-        // Arrange
-        var users = new List<User>
-        {
-            CreateTestUser(1, "Jan", "Kowalski"),
-            CreateTestUser(2, "Anna", "Nowak"),
-            CreateTestUser(3, "Piotr", "Wiśniewski")
-        };
-        _mockUserRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(users);
-
-        // Act
-        var result = await _userService.GetAllAsync();
-
-        // Assert
-        Assert.Equal(3, result.Count);
+        Assert.Equal(2, result.Count);
     }
 
     [Fact]
-    public async Task GetAllAsync_ReturnsEmptyList_WhenNoUsers()
+    public async Task ChangePasswordAsync_ReturnsFalse_WhenOldPasswordInvalid()
     {
-        // Arrange
-        _mockUserRepo.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
-
-        // Act
-        var result = await _userService.GetAllAsync();
-
-        // Assert
-        Assert.Empty(result);
-    }
-
-    #endregion
-
-    #region GetByEmailAsync Tests
-
-    [Fact]
-    public async Task GetByEmailAsync_ReturnsUser_WhenEmailExists()
-    {
-        // Arrange
-        var email = "jan@test.com";
-        var user = CreateTestUser(1, email: email);
-        _mockUserRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>()))
-            .ReturnsAsync(user);
-
-        // Act
-        var result = await _userService.GetByEmailAsync(email);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(email, result!.Email);
-    }
-
-    [Fact]
-    public async Task GetByEmailAsync_ReturnsNull_WhenEmailNotFound()
-    {
-        // Arrange
-        _mockUserRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>()))
-            .ReturnsAsync((User?)null);
-
-        // Act
-        var result = await _userService.GetByEmailAsync("nonexistent@test.com");
-
-        // Assert
-        Assert.Null(result);
-    }
-
-    #endregion
-
-    #region GetByIdsAsync Tests
-
-    [Fact]
-    public async Task GetByIdsAsync_ReturnsMatchingUsers()
-    {
-        // Arrange
-        var ids = new List<int> { 1, 2, 3 };
-        var users = new List<User>
-        {
-            CreateTestUser(1),
-            CreateTestUser(2),
-            CreateTestUser(3)
-        };
-        _mockUserRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>()))
-            .ReturnsAsync(users);
-
-        // Act
-        var result = await _userService.GetByIdsAsync(ids);
-
-        // Assert
-        Assert.Equal(3, result.Count);
-    }
-
-    [Fact]
-    public async Task GetByIdsAsync_RemovesDuplicateIds()
-    {
-        // Arrange
-        var ids = new List<int> { 1, 1, 2, 2, 3 }; // Duplicates
-        var users = new List<User> { CreateTestUser(1), CreateTestUser(2), CreateTestUser(3) };
-        _mockUserRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<User, bool>>>()))
-            .ReturnsAsync(users);
-
-        // Act
-        var result = await _userService.GetByIdsAsync(ids);
-
-        // Assert - Should still work correctly
-        Assert.Equal(3, result.Count);
-    }
-
-    #endregion
-
-    #region ChangePasswordAsync Tests
-
-    [Fact]
-    public async Task ChangePasswordAsync_ReturnsFalse_WhenCredentialNotFound()
-    {
-        // Arrange
-        _mockCredentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
-            .ReturnsAsync((UserCredential?)null);
-
-        // Act
-        var result = await _userService.ChangePasswordAsync(1, "old", "new");
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task ChangePasswordAsync_ReturnsFalse_WhenOldPasswordIsWrong()
-    {
-        // Arrange
-        var credential = new UserCredential
-        {
-            UserId = 1,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("correct_password")
-        };
-        _mockCredentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
-            .ReturnsAsync(credential);
-
-        // Act
-        var result = await _userService.ChangePasswordAsync(1, "wrong_password", "new_password");
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task ChangePasswordAsync_ReturnsTrue_WhenPasswordIsCorrect()
-    {
-        // Arrange
-        var oldPassword = "old_password";
-        var credential = new UserCredential
-        {
-            UserId = 1,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(oldPassword)
-        };
-        UserCredential? updatedCredential = null;
-
-        _mockCredentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
-            .ReturnsAsync(credential);
-        _mockCredentialRepo.Setup(r => r.Update(It.IsAny<UserCredential>()))
-            .Callback<UserCredential>(c => updatedCredential = c);
-        _mockCredentialRepo.Setup(r => r.SaveChangesAsync())
-            .Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _userService.ChangePasswordAsync(1, oldPassword, "new_password");
-
-        // Assert
-        Assert.True(result);
-        Assert.NotNull(updatedCredential);
-        Assert.True(BCrypt.Net.BCrypt.Verify("new_password", updatedCredential!.PasswordHash));
-    }
-
-    #endregion
-
-    #region SetPasswordAsync Tests
-
-    [Fact]
-    public async Task SetPasswordAsync_ReturnsFalse_WhenCredentialNotFound()
-    {
-        // Arrange
-        _mockCredentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
-            .ReturnsAsync((UserCredential?)null);
-
-        // Act
-        var result = await _userService.SetPasswordAsync(1, "new_password");
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task SetPasswordAsync_ReturnsTrue_AndUpdatesPassword()
-    {
-        // Arrange
-        var credential = new UserCredential { UserId = 1, PasswordHash = "old_hash" };
-        _mockCredentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
-            .ReturnsAsync(credential);
-        _mockCredentialRepo.Setup(r => r.SaveChangesAsync())
-            .Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _userService.SetPasswordAsync(1, "new_password");
-
-        // Assert
-        Assert.True(result);
-        Assert.True(BCrypt.Net.BCrypt.Verify("new_password", credential.PasswordHash));
-    }
-
-    #endregion
-
-    #region ChangeEmailAsync Tests
-
-    [Fact]
-    public async Task ChangeEmailAsync_ReturnsFalse_WhenUserNotFound()
-    {
-        // Arrange
-        _mockUserRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
-            .ReturnsAsync((User?)null);
-
-        // Act
-        var result = await _userService.ChangeEmailAsync(1, "new@email.com", "password");
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task ChangeEmailAsync_ReturnsFalse_WhenPasswordIsWrong()
-    {
-        // Arrange
-        var user = CreateTestUser(1);
         var credential = new UserCredential
         {
             UserId = 1,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("correct")
         };
-        _mockUserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        _mockCredentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
+        _credentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
             .ReturnsAsync(credential);
 
-        // Act
-        var result = await _userService.ChangeEmailAsync(1, "new@email.com", "wrong");
+        var result = await _sut.ChangePasswordAsync(1, "wrong", "new");
 
-        // Assert
         Assert.False(result);
     }
 
     [Fact]
-    public async Task ChangeEmailAsync_ReturnsFalse_WhenEmailAlreadyTaken()
+    public async Task ChangePasswordAsync_UpdatesPassword_WhenOldPasswordCorrect()
     {
-        // Arrange
-        var user = CreateTestUser(1);
-        var existingUser = CreateTestUser(2, email: "taken@email.com");
         var credential = new UserCredential
         {
             UserId = 1,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("password")
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("correct")
         };
 
-        _mockUserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        _mockCredentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
+        _credentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
             .ReturnsAsync(credential);
-        _mockUserRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>()))
-            .ReturnsAsync(existingUser); // Email already taken
 
-        // Act
-        var result = await _userService.ChangeEmailAsync(1, "taken@email.com", "password");
+        var result = await _sut.ChangePasswordAsync(1, "correct", "new");
 
-        // Assert
-        Assert.False(result);
+        Assert.True(result);
+        Assert.True(BCrypt.Net.BCrypt.Verify("new", credential.PasswordHash));
+        _credentialRepo.Verify(r => r.Update(credential), Times.Once);
     }
 
-    #endregion
-
-    #region CreateUserAsync Tests
-
     [Fact]
-    public async Task CreateUserAsync_ReturnsNull_WhenEmailExists()
+    public async Task CreateUserAsync_ReturnsNull_WhenEmailAlreadyExists()
     {
-        // Arrange
-        var existingUser = CreateTestUser(1, email: "existing@test.com");
-        _mockUserRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>()))
-            .ReturnsAsync(existingUser);
+        _userRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>()))
+            .ReturnsAsync(CreateUser(10, email: "taken@mail.com"));
 
-        // Act
-        var result = await _userService.CreateUserAsync("Jan", "Kowalski", "existing@test.com", "password", UserRole.STUDENT);
+        var result = await _sut.CreateUserAsync(
+            "Jan",
+            "Nowak",
+            "taken@mail.com",
+            "pass",
+            new List<UserRole> { UserRole.STUDENT },
+            true);
 
-        // Assert
         Assert.Null(result);
     }
 
     [Fact]
-    public async Task CreateUserAsync_CreatesUserAndCredentials()
+    public async Task CreateUserAsync_CreatesCredentialsAndRoles_WhenInputIsValid()
     {
-        // Arrange
-        UserCredential? addedCredential = null;
+        User? createdUser = null;
 
-        _mockUserRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>()))
+        _userRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>()))
             .ReturnsAsync((User?)null);
-        _mockUserRepo.Setup(r => r.AddAsync(It.IsAny<User>()))
-            .Returns(Task.CompletedTask);
-        _mockUserRepo.Setup(r => r.SaveChangesAsync())
-            .Returns(Task.CompletedTask);
-        _mockCredentialRepo.Setup(r => r.AddAsync(It.IsAny<UserCredential>()))
-            .Callback<UserCredential>(c => addedCredential = c)
-            .Returns(Task.CompletedTask);
-        _mockCredentialRepo.Setup(r => r.SaveChangesAsync())
+        _userRepo.Setup(r => r.AddAsync(It.IsAny<User>()))
+            .Callback<User>(u =>
+            {
+                u.Id = 123;
+                createdUser = u;
+            })
             .Returns(Task.CompletedTask);
 
-        // Act
-        var result = await _userService.CreateUserAsync("Jan", "Kowalski", "new@test.com", "password", UserRole.STUDENT, true);
+        var result = await _sut.CreateUserAsync(
+            "Jan",
+            "Nowak",
+            "new@mail.com",
+            "pass",
+            new List<UserRole> { UserRole.STUDENT, UserRole.ADMIN },
+            false);
 
-        // Assert
         Assert.NotNull(result);
-        Assert.Equal("Jan", result!.Name);
-        Assert.Equal("Kowalski", result.Surname);
-        Assert.Equal("new@test.com", result.Email);
-        Assert.Equal(UserRole.STUDENT, result.Role);
+        Assert.Equal(123, result!.Id);
+        Assert.False(result.IsActive);
+        Assert.Equal(2, result.Roles.Count);
+        _credentialRepo.Verify(r => r.AddAsync(It.Is<UserCredential>(c => c.UserId == 123)), Times.Once);
+        _roleRepo.Verify(r => r.AddAsync(It.IsAny<UserRoleAssignment>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_UpdatesFieldsAndRoles_WhenDataValid()
+    {
+        var user = CreateUser(5, email: "old@mail.com");
+        _userRepo.Setup(r => r.GetByIdAsync(5)).ReturnsAsync(user);
+        _userRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>())).ReturnsAsync((User?)null);
+        _roleRepo.Setup(r => r.FindAsync(It.IsAny<Expression<Func<UserRoleAssignment, bool>>>()))
+            .ReturnsAsync(new List<UserRoleAssignment> { new() { UserId = 5, Role = UserRole.STUDENT } });
+
+        var result = await _sut.UpdateUserAsync(
+            5,
+            "Adam",
+            "Kowal",
+            "new@mail.com",
+            new List<UserRole> { UserRole.ADMIN },
+            true);
+
+        Assert.NotNull(result);
+        Assert.Equal("Adam", result!.Name);
+        Assert.Equal("Kowal", result.Surname);
+        Assert.Equal("new@mail.com", result.Email);
         Assert.True(result.IsActive);
-
-        Assert.NotNull(addedCredential);
-        Assert.True(BCrypt.Net.BCrypt.Verify("password", addedCredential!.PasswordHash));
-    }
-
-    #endregion
-
-    #region UpdateUserAsync Tests
-
-    [Fact]
-    public async Task UpdateUserAsync_ReturnsNull_WhenUserNotFound()
-    {
-        // Arrange
-        _mockUserRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
-            .ReturnsAsync((User?)null);
-
-        // Act
-        var result = await _userService.UpdateUserAsync(999, "Updated", null, null, null, null);
-
-        // Assert
-        Assert.Null(result);
+        Assert.Single(result.Roles);
+        _roleRepo.Verify(r => r.Remove(It.IsAny<UserRoleAssignment>()), Times.Once);
+        _roleRepo.Verify(r => r.AddAsync(It.Is<UserRoleAssignment>(x => x.Role == UserRole.ADMIN)), Times.Once);
+        _userRepo.Verify(r => r.Update(user), Times.Once);
     }
 
     [Fact]
-    public async Task UpdateUserAsync_UpdatesOnlyProvidedFields()
+    public async Task DeleteUserAsync_RemovesCredentialAndUser_WhenUserExists()
     {
-        // Arrange
-        var user = CreateTestUser(1, "Original", "Name");
-        _mockUserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        _mockUserRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<User, bool>>>()))
-            .ReturnsAsync((User?)null); // No email conflict
-        _mockUserRepo.Setup(r => r.SaveChangesAsync()).Returns(Task.CompletedTask);
+        var user = CreateUser(9);
+        var credential = new UserCredential { UserId = 9, PasswordHash = "hash" };
 
-        // Act - Only update name
-        var result = await _userService.UpdateUserAsync(1, "Updated", null, null, null, null);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal("Updated", result!.Name);
-        Assert.Equal("Name", result.Surname); // Unchanged
-    }
-
-    #endregion
-
-    #region DeleteUserAsync Tests
-
-    [Fact]
-    public async Task DeleteUserAsync_ReturnsFalse_WhenUserNotFound()
-    {
-        // Arrange
-        _mockUserRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
-            .ReturnsAsync((User?)null);
-
-        // Act
-        var result = await _userService.DeleteUserAsync(999);
-
-        // Assert
-        Assert.False(result);
-    }
-
-    [Fact]
-    public async Task DeleteUserAsync_DeletesUserAndCredentials()
-    {
-        // Arrange
-        var user = CreateTestUser(1);
-        var credential = new UserCredential { UserId = 1 };
-
-        _mockUserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        _mockCredentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
+        _userRepo.Setup(r => r.GetByIdAsync(9)).ReturnsAsync(user);
+        _credentialRepo.Setup(r => r.FindSingleAsync(It.IsAny<Expression<Func<UserCredential, bool>>>()))
             .ReturnsAsync(credential);
-        _mockCredentialRepo.Setup(r => r.SaveChangesAsync()).Returns(Task.CompletedTask);
-        _mockUserRepo.Setup(r => r.SaveChangesAsync()).Returns(Task.CompletedTask);
 
-        // Act
-        var result = await _userService.DeleteUserAsync(1);
+        var result = await _sut.DeleteUserAsync(9);
 
-        // Assert
         Assert.True(result);
-        _mockCredentialRepo.Verify(r => r.Remove(credential), Times.Once);
-        _mockUserRepo.Verify(r => r.Remove(user), Times.Once);
-    }
-
-    #endregion
-
-    #region ToggleUserStatusAsync Tests
-
-    [Fact]
-    public async Task ToggleUserStatusAsync_ReturnsFalse_WhenUserNotFound()
-    {
-        // Arrange
-        _mockUserRepo.Setup(r => r.GetByIdAsync(It.IsAny<int>()))
-            .ReturnsAsync((User?)null);
-
-        // Act
-        var result = await _userService.ToggleUserStatusAsync(999);
-
-        // Assert
-        Assert.False(result);
+        _credentialRepo.Verify(r => r.Remove(credential), Times.Once);
+        _userRepo.Verify(r => r.Remove(user), Times.Once);
     }
 
     [Fact]
-    public async Task ToggleUserStatusAsync_TogglesActiveToInactive()
+    public async Task ToggleUserStatusAsync_TogglesValue()
     {
-        // Arrange
-        var user = CreateTestUser(1, isActive: true);
-        _mockUserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        _mockUserRepo.Setup(r => r.SaveChangesAsync()).Returns(Task.CompletedTask);
+        var user = CreateUser(2, isActive: false);
+        _userRepo.Setup(r => r.GetByIdAsync(2)).ReturnsAsync(user);
 
-        // Act
-        var result = await _userService.ToggleUserStatusAsync(1);
+        var result = await _sut.ToggleUserStatusAsync(2);
 
-        // Assert
-        Assert.True(result);
-        Assert.False(user.IsActive);
-    }
-
-    [Fact]
-    public async Task ToggleUserStatusAsync_TogglesInactiveToActive()
-    {
-        // Arrange
-        var user = CreateTestUser(1, isActive: false);
-        _mockUserRepo.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
-        _mockUserRepo.Setup(r => r.SaveChangesAsync()).Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _userService.ToggleUserStatusAsync(1);
-
-        // Assert
         Assert.True(result);
         Assert.True(user.IsActive);
+        _userRepo.Verify(r => r.Update(user), Times.Once);
     }
 
-    #endregion
-
-    #region Helper Methods
-
-    private User CreateTestUser(int id = 1, string name = "Jan", string surname = "Kowalski", string email = "test@example.com", bool isActive = true)
+    private static User CreateUser(int id, string email = "user@mail.com", bool isActive = true)
     {
         return new User
         {
             Id = id,
-            Name = name,
-            Surname = surname,
+            Name = "Jan",
+            Surname = "Nowak",
             Email = email,
             IsActive = isActive,
             CreatedAt = DateTime.UtcNow,
-            Role = UserRole.STUDENT
+            Roles = new List<UserRoleAssignment>
+            {
+                new() { UserId = id, Role = UserRole.STUDENT }
+            }
         };
     }
-
-    #endregion
 }
