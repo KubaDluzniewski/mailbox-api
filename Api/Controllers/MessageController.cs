@@ -4,6 +4,7 @@ using Core.Entity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Text.Json;
 using AutoMapper;
 
 namespace Api.Controllers;
@@ -33,17 +34,46 @@ public class MessageController : ControllerBase
 
     [Authorize]
     [HttpPost("send")]
-    public async Task<IActionResult> Send([FromBody] SendMessageDto? dto, CancellationToken cancellationToken)
+    [DisableRequestSizeLimit]
+    public async Task<IActionResult> Send(
+        [FromForm] string? subject,
+        [FromForm] string? body,
+        [FromForm] string? recipients,
+        [FromForm] int? id,
+        IFormFileCollection? attachments,
+        CancellationToken cancellationToken)
     {
-        if (dto == null) return BadRequest("Brak danych.");
-        if (dto.Recipients.Count == 0) return BadRequest("Brak odbiorców.");
+        if (string.IsNullOrWhiteSpace(subject)) return BadRequest("Brak tematu.");
+
+        List<RecipientDto> recipientList;
+        try
+        {
+            recipientList = string.IsNullOrWhiteSpace(recipients)
+                ? []
+                : JsonSerializer.Deserialize<List<RecipientDto>>(recipients, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        }
+        catch
+        {
+            return BadRequest("Nieprawidłowy format odbiorców.");
+        }
+
+        if (recipientList.Count == 0) return BadRequest("Brak odbiorców.");
 
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
         if (!int.TryParse(userIdStr, out var senderId)) return Unauthorized();
 
-        var response = await _messageService.SendMessages(dto, senderId, cancellationToken);
-        if(!response) return StatusCode(500, "Nie udało się wysłać wiadomości");
+        var dto = new SendMessageDto
+        {
+            Id = id,
+            Subject = subject,
+            Body = body ?? string.Empty,
+            Recipients = recipientList
+        };
+
+        var attachmentDtos = await ReadAttachmentsAsync(attachments);
+
+        var response = await _messageService.SendMessages(dto, senderId, cancellationToken, attachmentDtos);
+        if (!response) return StatusCode(500, "Nie udało się wysłać wiadomości");
         return Ok();
     }
 
@@ -59,7 +89,6 @@ public class MessageController : ControllerBase
         var result = list.Select(m => {
             var currentUserRecipient = m.Recipients.FirstOrDefault(r => r.RecipientEntityId == userId.Value && r.RecipientType == RecipientType.User);
 
-            
             return new {
                 m.Id,
                 m.Subject,
@@ -76,7 +105,14 @@ public class MessageController : ControllerBase
                     }
                 }.ToList(),
                 IsRead = currentUserRecipient?.IsRead ?? false,
-                ReadAt = currentUserRecipient?.ReadAt
+                ReadAt = currentUserRecipient?.ReadAt,
+                Attachments = m.Attachments.Select(a => new AttachmentDto
+                {
+                    Id = a.Id,
+                    FileName = a.FileName,
+                    ContentType = a.ContentType,
+                    FileSize = a.FileSize
+                }).ToList()
             };
         }).ToList();
 
@@ -109,6 +145,13 @@ public class MessageController : ControllerBase
                     DisplayName = user?.FullName() ?? "Unknown",
                     Subtitle = user?.Email ?? ""
                 };
+            }).ToList(),
+            Attachments = m.Attachments.Select(a => new AttachmentDto
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                FileSize = a.FileSize
             }).ToList()
         }).ToList();
 
@@ -117,14 +160,39 @@ public class MessageController : ControllerBase
 
     [Authorize]
     [HttpPost("draft")]
-    public async Task<IActionResult> SaveDraft([FromBody] SendMessageDto? dto, CancellationToken cancellationToken)
+    [DisableRequestSizeLimit]
+    public async Task<IActionResult> SaveDraft(
+        [FromForm] string? subject,
+        [FromForm] string? body,
+        [FromForm] string? recipients,
+        IFormFileCollection? attachments,
+        CancellationToken cancellationToken)
     {
-        if (dto == null) return BadRequest("Brak danych.");
-
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
-        var draft = await _messageService.SaveDraftAsync(dto, userId.Value, cancellationToken);
+        List<RecipientDto> recipientList;
+        try
+        {
+            recipientList = string.IsNullOrWhiteSpace(recipients)
+                ? []
+                : JsonSerializer.Deserialize<List<RecipientDto>>(recipients, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        }
+        catch
+        {
+            return BadRequest("Nieprawidłowy format odbiorców.");
+        }
+
+        var dto = new SendMessageDto
+        {
+            Subject = subject ?? string.Empty,
+            Body = body ?? string.Empty,
+            Recipients = recipientList
+        };
+
+        var attachmentDtos = await ReadAttachmentsAsync(attachments);
+
+        var draft = await _messageService.SaveDraftAsync(dto, userId.Value, cancellationToken, attachmentDtos);
 
         var response = new
         {
@@ -132,7 +200,14 @@ public class MessageController : ControllerBase
             draft.Subject,
             draft.Body,
             draft.CreatedAt,
-            Recipients = dto.Recipients
+            Recipients = dto.Recipients,
+            Attachments = draft.Attachments.Select(a => new AttachmentDto
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                FileSize = a.FileSize
+            }).ToList()
         };
 
         return Ok(response);
@@ -169,6 +244,13 @@ public class MessageController : ControllerBase
                     var group = groups.FirstOrDefault(g => g.Id == r.RecipientEntityId);
                     return new RecipientDto { Id = r.RecipientEntityId, Type = "group", DisplayName = group?.Name ?? "Unknown", Subtitle = "Group" };
                 }
+            }).ToList(),
+            Attachments = m.Attachments.Select(a => new AttachmentDto
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                FileSize = a.FileSize
             }).ToList()
         }).ToList();
 
@@ -188,13 +270,40 @@ public class MessageController : ControllerBase
 
     [Authorize]
     [HttpPut("draft/{id}")]
-    public async Task<IActionResult> UpdateDraft(int id, [FromBody] SendMessageDto? dto, CancellationToken cancellationToken)
+    [DisableRequestSizeLimit]
+    public async Task<IActionResult> UpdateDraft(
+        int id,
+        [FromForm] string? subject,
+        [FromForm] string? body,
+        [FromForm] string? recipients,
+        IFormFileCollection? attachments,
+        CancellationToken cancellationToken)
     {
-        if (dto == null) return BadRequest("Brak danych.");
-
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        var draft = await _messageService.UpdateDraftAsync(id, dto, userId.Value, cancellationToken);
+
+        List<RecipientDto> recipientList;
+        try
+        {
+            recipientList = string.IsNullOrWhiteSpace(recipients)
+                ? []
+                : JsonSerializer.Deserialize<List<RecipientDto>>(recipients, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        }
+        catch
+        {
+            return BadRequest("Nieprawidłowy format odbiorców.");
+        }
+
+        var dto = new SendMessageDto
+        {
+            Subject = subject ?? string.Empty,
+            Body = body ?? string.Empty,
+            Recipients = recipientList
+        };
+
+        var attachmentDtos = await ReadAttachmentsAsync(attachments);
+
+        var draft = await _messageService.UpdateDraftAsync(id, dto, userId.Value, cancellationToken, attachmentDtos.Count > 0 ? attachmentDtos : null);
         if (draft == null) return NotFound();
 
         var response = new
@@ -202,10 +311,30 @@ public class MessageController : ControllerBase
             draft.Id,
             draft.Subject,
             draft.Body,
-            Recipients = dto.Recipients
+            Recipients = dto.Recipients,
+            Attachments = draft.Attachments.Select(a => new AttachmentDto
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                FileSize = a.FileSize
+            }).ToList()
         };
 
         return Ok(response);
+    }
+
+    [Authorize]
+    [HttpGet("{messageId}/attachments/{attachmentId}")]
+    public async Task<IActionResult> DownloadAttachment(int messageId, int attachmentId)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var attachment = await _messageService.GetAttachmentAsync(messageId, attachmentId, userId.Value);
+        if (attachment == null) return NotFound();
+
+        return File(attachment.Data, attachment.ContentType, attachment.FileName);
     }
 
     [Authorize]
@@ -269,6 +398,13 @@ public class MessageController : ControllerBase
                     DisplayName = user?.FullName() ?? "Unknown",
                     Subtitle = user?.Email ?? ""
                 };
+            }).ToList(),
+            Attachments = m.Attachments.Select(a => new AttachmentDto
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                FileSize = a.FileSize
             }).ToList()
         }).ToList();
 
@@ -282,4 +418,29 @@ public class MessageController : ControllerBase
             return userId;
         return null;
     }
+
+    private static async Task<List<CreateAttachmentDto>> ReadAttachmentsAsync(IFormFileCollection? files)
+    {
+        if (files == null || files.Count == 0)
+            return [];
+
+        var result = new List<CreateAttachmentDto>();
+        foreach (var file in files)
+        {
+            if (file.Length == 0) continue;
+
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+
+            result.Add(new CreateAttachmentDto
+            {
+                FileName = file.FileName,
+                ContentType = file.ContentType,
+                FileSize = file.Length,
+                Data = ms.ToArray()
+            });
+        }
+        return result;
+    }
 }
+

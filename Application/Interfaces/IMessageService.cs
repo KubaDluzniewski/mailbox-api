@@ -32,11 +32,12 @@ public interface IMessageService
     /// <param name="dto"></param>
     /// <param name="senderId"></param>
     /// <param name="cancellationToken"></param>
+    /// <param name="attachments"></param>
     /// <returns></returns>
-    Task<bool> SendMessages(SendMessageDto dto, int senderId, CancellationToken cancellationToken);
+    Task<bool> SendMessages(SendMessageDto dto, int senderId, CancellationToken cancellationToken, IList<CreateAttachmentDto>? attachments = null);
 
-    Task<Message?> UpdateDraftAsync(int draftId, SendMessageDto dto, int senderId, CancellationToken cancellationToken);
-    Task<Message> SaveDraftAsync(SendMessageDto dto, int senderId, CancellationToken cancellationToken);
+    Task<Message?> UpdateDraftAsync(int draftId, SendMessageDto dto, int senderId, CancellationToken cancellationToken, IList<CreateAttachmentDto>? attachments = null);
+    Task<Message> SaveDraftAsync(SendMessageDto dto, int senderId, CancellationToken cancellationToken, IList<CreateAttachmentDto>? attachments = null);
     Task<List<Message>> GetDraftsForUserAsync(int userId);
     Task<bool> DeleteDraftAsync(int draftId, int userId);
 
@@ -68,4 +69,13 @@ public interface IMessageService
     /// </summary>
     /// <returns></returns>
     Task<List<Message>> GetAllMessagesAsync();
+
+    /// <summary>
+    ///     Pobiera załącznik wiadomości (sprawdza uprawnienia użytkownika)
+    /// </summary>
+    /// <param name="messageId"></param>
+    /// <param name="attachmentId"></param>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    Task<MessageAttachment?> GetAttachmentAsync(int messageId, int attachmentId, int userId);
 }

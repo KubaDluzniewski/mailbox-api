@@ -42,7 +42,7 @@ namespace Application.Services
         public Task<List<Message>> GetMessagesSentByUserAsync(int userId)
             => _messageRepository.GetMessagesSentByUserAsync(userId);
 
-        public async Task<bool> SendMessages(SendMessageDto dto, int senderId, CancellationToken cancellationToken)
+        public async Task<bool> SendMessages(SendMessageDto dto, int senderId, CancellationToken cancellationToken, IList<CreateAttachmentDto>? attachments = null)
         {
             var userDb = await _userService.GetByIdAsync(senderId);
             if (userDb == null || !userDb.IsActive)
@@ -93,7 +93,14 @@ namespace Application.Services
                 Body = dto.Body,
                 SenderId = senderId,
                 SentDate = DateTime.UtcNow,
-                Recipients = allRecipientUserIds.Select(id => new MessageRecipient { RecipientEntityId = id, RecipientType = RecipientType.User }).ToList()
+                Recipients = allRecipientUserIds.Select(id => new MessageRecipient { RecipientEntityId = id, RecipientType = RecipientType.User }).ToList(),
+                Attachments = (attachments ?? []).Select(a => new MessageAttachment
+                {
+                    FileName = a.FileName,
+                    ContentType = a.ContentType,
+                    FileSize = a.FileSize,
+                    Data = a.Data
+                }).ToList()
             };
             await _messageRepository.AddAsync(message);
             await _messageRepository.SaveChangesAsync();
@@ -106,7 +113,7 @@ namespace Application.Services
             return true;
         }
 
-        public async Task<Message> SaveDraftAsync(SendMessageDto dto, int senderId, CancellationToken cancellationToken)
+        public async Task<Message> SaveDraftAsync(SendMessageDto dto, int senderId, CancellationToken cancellationToken, IList<CreateAttachmentDto>? attachments = null)
         {
             var draft = new Message
             {
@@ -125,6 +132,13 @@ namespace Application.Services
             }).ToList();
 
             draft.Recipients = recipients;
+            draft.Attachments = (attachments ?? []).Select(a => new MessageAttachment
+            {
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                FileSize = a.FileSize,
+                Data = a.Data
+            }).ToList();
 
             await _messageRepository.AddAsync(draft);
             await _messageRepository.SaveChangesAsync();
@@ -146,7 +160,7 @@ namespace Application.Services
             return true;
         }
 
-        public async Task<Message?> UpdateDraftAsync(int draftId, SendMessageDto dto, int senderId, CancellationToken cancellationToken)
+        public async Task<Message?> UpdateDraftAsync(int draftId, SendMessageDto dto, int senderId, CancellationToken cancellationToken, IList<CreateAttachmentDto>? attachments = null)
         {
             var draft = await _messageRepository.GetDraftWithRecipientsAsync(draftId);
             if (draft == null || !draft.IsDraft || draft.SenderId != senderId)
@@ -165,6 +179,17 @@ namespace Application.Services
             }).ToList();
 
             draft.Recipients = recipients;
+
+            if (attachments != null && attachments.Count > 0)
+            {
+                draft.Attachments = attachments.Select(a => new MessageAttachment
+                {
+                    FileName = a.FileName,
+                    ContentType = a.ContentType,
+                    FileSize = a.FileSize,
+                    Data = a.Data
+                }).ToList();
+            }
 
             await _messageRepository.SaveChangesAsync();
             return draft;
@@ -188,6 +213,26 @@ namespace Application.Services
         public async Task<List<Message>> GetAllMessagesAsync()
         {
             return await _messageRepository.GetAllMessagesAsync();
+        }
+
+        public async Task<MessageAttachment?> GetAttachmentAsync(int messageId, int attachmentId, int userId)
+        {
+            var attachment = await _messageRepository.GetAttachmentAsync(messageId, attachmentId);
+            if (attachment == null)
+                return null;
+
+            var message = await _messageRepository.GetByIdAsync(messageId);
+            if (message == null)
+                return null;
+
+            // Sender and recipients (loaded separately via repository) can access the attachment
+            var messages = await _messageRepository.GetMessagesForUserAsync(userId);
+            var sentMessages = await _messageRepository.GetMessagesSentByUserAsync(userId);
+            var hasAccess = messages.Any(m => m.Id == messageId) || sentMessages.Any(m => m.Id == messageId);
+            if (!hasAccess)
+                return null;
+
+            return attachment;
         }
     }
 }

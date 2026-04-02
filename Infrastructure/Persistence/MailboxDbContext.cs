@@ -15,6 +15,7 @@ public class MailboxDbContext : DbContext
 
     public DbSet<Group> Groups { get; set; }
     public DbSet<UserActivationToken> UserActivationTokens { get; set; }
+    public DbSet<MessageAttachment> MessageAttachments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,12 @@ public class MailboxDbContext : DbContext
 
         modelBuilder.Entity<Group>()
             .HasMany(u => u.Users);
+
+        modelBuilder.Entity<MessageAttachment>()
+            .HasOne(a => a.Message)
+            .WithMany(m => m.Attachments)
+            .HasForeignKey(a => a.MessageId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<UserRoleAssignment>()
             .HasOne(r => r.User)
