@@ -180,16 +180,13 @@ namespace Application.Services
 
             draft.Recipients = recipients;
 
-            if (attachments != null && attachments.Count > 0)
+            draft.Attachments = (attachments ?? []).Select(a => new MessageAttachment
             {
-                draft.Attachments = attachments.Select(a => new MessageAttachment
-                {
-                    FileName = a.FileName,
-                    ContentType = a.ContentType,
-                    FileSize = a.FileSize,
-                    Data = a.Data
-                }).ToList();
-            }
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                FileSize = a.FileSize,
+                Data = a.Data
+            }).ToList();
 
             await _messageRepository.SaveChangesAsync();
             return draft;
@@ -217,22 +214,11 @@ namespace Application.Services
 
         public async Task<MessageAttachment?> GetAttachmentAsync(int messageId, int attachmentId, int userId)
         {
-            var attachment = await _messageRepository.GetAttachmentAsync(messageId, attachmentId);
-            if (attachment == null)
-                return null;
-
-            var message = await _messageRepository.GetByIdAsync(messageId);
-            if (message == null)
-                return null;
-
-            // Sender and recipients (loaded separately via repository) can access the attachment
-            var messages = await _messageRepository.GetMessagesForUserAsync(userId);
-            var sentMessages = await _messageRepository.GetMessagesSentByUserAsync(userId);
-            var hasAccess = messages.Any(m => m.Id == messageId) || sentMessages.Any(m => m.Id == messageId);
+            var hasAccess = await _messageRepository.UserHasAccessToMessageAsync(messageId, userId);
             if (!hasAccess)
                 return null;
 
-            return attachment;
+            return await _messageRepository.GetAttachmentAsync(messageId, attachmentId);
         }
     }
 }

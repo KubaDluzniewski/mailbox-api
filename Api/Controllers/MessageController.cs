@@ -424,23 +424,34 @@ public class MessageController : ControllerBase
         if (files == null || files.Count == 0)
             return [];
 
+        const long maxFileSizeBytes = 10 * 1024 * 1024; // 10 MB per file
+
         var result = new List<CreateAttachmentDto>();
         foreach (var file in files)
         {
             if (file.Length == 0) continue;
+            if (file.Length > maxFileSizeBytes) continue;
 
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms);
 
             result.Add(new CreateAttachmentDto
             {
-                FileName = file.FileName,
+                FileName = SanitizeFileName(file.FileName),
                 ContentType = file.ContentType,
                 FileSize = file.Length,
                 Data = ms.ToArray()
             });
         }
         return result;
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var name = Path.GetFileName(fileName);
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+            name = name.Replace(invalid, '_');
+        return name;
     }
 }
 
