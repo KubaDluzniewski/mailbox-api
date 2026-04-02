@@ -11,7 +11,7 @@ public class MessageServiceTests
 {
     private readonly Mock<IMessageRepository> _mockMessageRepo;
     private readonly Mock<IUserService> _mockUserService;
-    private readonly Mock<ISesEmailService> _mockEmailService;
+    private readonly Mock<IEmailService> _mockEmailService;
     private readonly Mock<IGroupRepository> _mockGroupRepo;
     private readonly MessageService _messageService;
 
@@ -19,7 +19,7 @@ public class MessageServiceTests
     {
         _mockMessageRepo = new Mock<IMessageRepository>();
         _mockUserService = new Mock<IUserService>();
-        _mockEmailService = new Mock<ISesEmailService>();
+        _mockEmailService = new Mock<IEmailService>();
         _mockGroupRepo = new Mock<IGroupRepository>();
 
         _messageService = new MessageService(

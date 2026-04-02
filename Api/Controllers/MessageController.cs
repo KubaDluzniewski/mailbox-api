@@ -1,4 +1,4 @@
-﻿using Application.DTOs;
+using Application.DTOs;
 using Application.Interfaces;
 using Core.Entity;
 using Microsoft.AspNetCore.Authorization;
@@ -13,13 +13,13 @@ namespace Api.Controllers;
 public class MessageController : ControllerBase
 {
     private readonly IMessageService _messageService;
-    private readonly ISesEmailService _sesEmailService;
+    private readonly IEmailService _sesEmailService;
     private readonly IUserService _userService;
     private readonly IMapper _mapper;
     private readonly IGroupRepository _groupRepository;
 
     public MessageController(IMessageService messageService,
-                             ISesEmailService sesEmailService,
+                             IEmailService sesEmailService,
                              IUserService userService,
                              IMapper mapper,
                              IGroupRepository groupRepository)
@@ -59,6 +59,7 @@ public class MessageController : ControllerBase
         var result = list.Select(m => {
             var currentUserRecipient = m.Recipients.FirstOrDefault(r => r.RecipientEntityId == userId.Value && r.RecipientType == RecipientType.User);
 
+            
             return new {
                 m.Id,
                 m.Subject,

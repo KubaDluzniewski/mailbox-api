@@ -1,4 +1,4 @@
-﻿using Application.Interfaces;
+using Application.Interfaces;
 using Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,7 +11,7 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IMessageService, MessageService>();
-        services.AddScoped<ISesEmailService, SesEmailService>();
+        services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IGroupService, GroupService>();
         services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
         return services;

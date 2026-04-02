@@ -11,5 +11,15 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
 
+  mailpit:
+    image: axllent/mailpit
+    restart: always
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_UI_AUTH_FILE: ""
+
 volumes:
   db_data:
