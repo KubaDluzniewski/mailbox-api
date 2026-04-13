@@ -44,6 +44,11 @@ public class UserController : ControllerBase
     [HttpGet("getSuggestion")]
     public async Task<ActionResult<IEnumerable<UserDto>>> GetAllOrSearch([FromQuery] string? name)
     {
+        if (string.IsNullOrEmpty(name))
+        {
+            var allUsers = await _userService.GetAllAsync();
+            return Ok(allUsers.Select(u => _mapper.Map<UserDto>(u)));
+        }
         var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (!int.TryParse(userIdStr, out var userId)) return Unauthorized();
 
