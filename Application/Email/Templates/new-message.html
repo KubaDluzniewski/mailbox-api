@@ -1,180 +1,67 @@
 <!DOCTYPE html>
 <html lang="pl">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mailbox</title>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: #f4f6fb;
-      font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
-    }
-
-    .wrapper {
-      max-width: 600px;
-      margin: 32px auto;
-      background: #fff;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, .08);
-    }
-
-    .header {
-      background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
-      padding: 32px 40px;
-      text-align: center;
-    }
-
-    .header-logo {
-      color: #fff;
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-decoration: none;
-    }
-
-    .header-logo span {
-      color: #90caf9;
-    }
-
-    .body {
-      padding: 40px 40px 32px;
-      color: #222;
-    }
-
-    .greeting {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #1a1a2e;
-    }
-
-    .text {
-      font-size: 15px;
-      line-height: 1.7;
-      color: #444;
-      margin-bottom: 24px;
-    }
-
-    .card {
-      width: 100%;
-      border: 1px solid #e8eaf0;
-      border-radius: 8px;
-      border-collapse: collapse;
-      margin-bottom: 24px;
-    }
-
-    .card td {
-      padding: 14px 20px;
-    }
-
-    .card .label {
-      font-size: 12px;
-      color: #888;
-      display: block;
-      margin-bottom: 2px;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-    }
-
-    .card .value {
-      font-weight: 600;
-      color: #1a1a2e;
-      font-size: 15px;
-    }
-
-    .card .preview {
-      color: #555;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .card .row-border {
-      border-bottom: 1px solid #f0f1f5;
-    }
-
-    .divider {
-      border: none;
-      border-top: 1px solid #e8eaf0;
-      margin: 28px 0;
-    }
-
-    .note {
-      font-size: 13px;
-      color: #888;
-      line-height: 1.6;
-    }
-
-    .cta-wrap {
-      margin: 20px 0;
-      text-align: center;
-    }
-
-    .cta {
-      display: inline-block;
-      padding: 12px 22px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
-      color: #fff !important;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: .2px;
-    }
-
-    .footer {
-      background: #f8f9fc;
-      padding: 20px 40px;
-      text-align: center;
-      font-size: 12px;
-      color: #aaa;
-      border-top: 1px solid #e8eaf0;
-    }
-
-    .footer strong {
-      color: #1a73e8;
-    }
+    body { margin: 0; padding: 0; background: #f5f5f4; font-family: 'Segoe UI', Arial, Helvetica, sans-serif; color: #18181b; }
+    .shell { max-width: 620px; margin: 28px auto; padding: 0 12px; }
+    .card { background: #ffffff; border: 1px solid #e7e5e4; border-radius: 14px; overflow: hidden; }
+    .header { padding: 28px 32px 22px; border-bottom: 1px solid #e7e5e4; background: #fafaf9; }
+    .brand { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #52525b; }
+    .title { margin: 0; font-size: 26px; line-height: 1.2; font-weight: 700; color: #18181b; }
+    .body { padding: 28px 32px 26px; }
+    .greeting { margin: 0 0 14px; font-size: 18px; font-weight: 600; color: #27272a; }
+    .text { margin: 0 0 16px; font-size: 15px; line-height: 1.65; color: #3f3f46; }
+    .detail-table { width: 100%; border: 1px solid #e7e5e4; border-radius: 10px; border-collapse: collapse; overflow: hidden; }
+    .detail-table td { padding: 13px 16px; border-bottom: 1px solid #f1f0ef; }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .label { display: block; margin-bottom: 3px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #71717a; }
+    .value { display: block; font-size: 15px; font-weight: 600; color: #27272a; }
+    .cta-wrap { margin: 22px 0 20px; text-align: center; }
+    .cta { display: inline-block; background: #18181b; color: #ffffff !important; text-decoration: none; font-size: 14px; font-weight: 700; letter-spacing: 0.02em; padding: 13px 26px; border-radius: 9px; }
+    .rule { border: none; border-top: 1px solid #e7e5e4; margin: 20px 0; }
+    .note { margin: 0; font-size: 13px; line-height: 1.6; color: #71717a; }
+    .footer { padding: 16px 32px 22px; border-top: 1px solid #e7e5e4; background: #fafaf9; font-size: 12px; color: #71717a; text-align: center; }
+    .footer strong { color: #27272a; }
   </style>
 </head>
-
 <body>
   <div style="display:none;max-height:0;overflow:hidden;">Nowa wiadomość od {{senderFullName}}: {{subject}}</div>
-  <div class="wrapper">
-    <div class="header">
-      <a class="header-logo" href="#">Mail<span>box</span></a>
-    </div>
-    <div class="body">
-      <div class="greeting">Masz nową wiadomość 📬</div>
-      <p style="font-size:15px;color:#444;margin-bottom:20px;">
-        Hej, <strong>{{recipientFirstName}}</strong>!
-      </p>
-      <table class="card">
-        <tr class="row-border">
-          <td>
-            <span class="label">Od</span>
-            <span class="value">{{senderFullName}}</span>
-          </td>
-        </tr>
-        <tr class="row-border">
-          <td>
-            <span class="label">Temat</span>
-            <span class="value">{{subject}}</span>
-          </td>
-        </tr>
-      </table>
-      <div class="cta-wrap">
-        <a class="cta" href="{{loginLink}}">Przejdź do logowania</a>
+  <div class="shell">
+    <div class="card">
+      <div class="header">
+        <p class="brand">Mailbox</p>
+        <h1 class="title">Nowa wiadomość</h1>
       </div>
-      <hr class="divider" />
-      <p class="note">Zaloguj się do Mailbox, aby przeczytać pełną wiadomość.</p>
-    </div>
-    <div class="footer">
-      Wysłano przy użyciu <strong>Mailbox</strong> &bull; Nie odpowiadaj na tę wiadomość.
+      <div class="body">
+        <p class="greeting">Cześć, {{recipientFirstName}}!</p>
+        <p class="text">Otrzymałeś nową wiadomość w systemie Mailbox.</p>
+        <table class="detail-table" role="presentation">
+          <tr>
+            <td>
+              <span class="label">Od</span>
+              <span class="value">{{senderFullName}}</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="label">Temat</span>
+              <span class="value">{{subject}}</span>
+            </td>
+          </tr>
+        </table>
+        <div class="cta-wrap">
+          <a class="cta" href="{{loginLink}}">Przejdź do logowania</a>
+        </div>
+        <hr class="rule" />
+        <p class="note">Zaloguj się do Mailbox, aby przeczytać pełną wiadomość.</p>
+      </div>
+      <div class="footer">
+        Wysłano przy użyciu <strong>Mailbox</strong> • Nie odpowiadaj na tę wiadomość.
+      </div>
     </div>
   </div>
 </body>
-
 </html>
