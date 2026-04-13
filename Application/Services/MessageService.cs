@@ -11,6 +11,7 @@ using Core.Entity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Application.Services
 {
@@ -21,14 +22,22 @@ namespace Application.Services
         private readonly IEmailService _sesEmailService;
         private readonly IGroupRepository _groupRepository;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<MessageService> _logger;
 
-        public MessageService(IMessageRepository messageRepository, IUserService userService, IEmailService sesEmailService, IGroupRepository groupRepository, IConfiguration configuration)
+        public MessageService(
+            IMessageRepository messageRepository,
+            IUserService userService,
+            IEmailService sesEmailService,
+            IGroupRepository groupRepository,
+            IConfiguration configuration,
+            ILogger<MessageService> logger)
         {
             _messageRepository = messageRepository;
             _userService = userService;
             _sesEmailService = sesEmailService;
             _groupRepository = groupRepository;
             _configuration = configuration;
+            _logger = logger;
         }
 
         public async Task SendMessageAsync(Message message)
@@ -80,37 +89,6 @@ namespace Application.Services
                 }
             }
 
-            try
-            {
-                var frontendUrl = _configuration["App:FrontendUrl"]?.TrimEnd('/');
-                var loginLink = string.IsNullOrWhiteSpace(frontendUrl)
-                    ? "http://localhost:5173/login"
-                    : $"{frontendUrl}/login";
-
-                foreach (var user in users)
-                {
-                    if (string.IsNullOrWhiteSpace(user.Email)) continue;
-
-                    var subject = $"Nowa wiadomość od {userDb.FullName()}: {dto.Subject}";
-                    var htmlBody = EmailTemplates.NewMessageNotification(
-                        user.Name,
-                        userDb.FullName(),
-                        dto.Subject,
-                        loginLink);
-                    await _sesEmailService.SendEmailAsync(
-                        user.Name,
-                        user.Email!,
-                        subject,
-                        htmlBody,
-                        cancellationToken
-                    );
-                }
-            }
-            catch
-            {
-                return false;
-            }
-
             var message = new Message
             {
                 Subject = dto.Subject,
@@ -132,6 +110,38 @@ namespace Application.Services
             if (dto.Id.HasValue)
             {
                 await DeleteDraftAsync(dto.Id.Value, senderId);
+            }
+
+            var frontendUrl = _configuration["App:FrontendUrl"]?.TrimEnd('/');
+            var loginLink = string.IsNullOrWhiteSpace(frontendUrl)
+                ? "http://localhost:5173/login"
+                : $"{frontendUrl}/login";
+
+            foreach (var user in users)
+            {
+                if (string.IsNullOrWhiteSpace(user.Email)) continue;
+
+                var subject = $"Nowa wiadomość od {userDb.FullName()}: {dto.Subject}";
+                var htmlBody = EmailTemplates.NewMessageNotification(
+                    user.Name,
+                    userDb.FullName(),
+                    dto.Subject,
+                    loginLink);
+
+                try
+                {
+                    await _sesEmailService.SendEmailAsync(
+                        user.Name,
+                        user.Email!,
+                        subject,
+                        htmlBody,
+                        cancellationToken
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Wiadomosc {MessageSubject} zapisana, ale nie udalo sie wyslac powiadomienia email do {RecipientEmail}", dto.Subject, user.Email);
+                }
             }
 
             return true;

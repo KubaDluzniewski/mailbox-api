@@ -51,19 +51,19 @@ public class UserController : ControllerBase
         var userRoles = new List<UserRole>();
         foreach (var roleStr in rolesClaims)
         {
-            if (Enum.TryParse<Core.Entity.UserRole>(roleStr, out var roleEnum))
+            if (Enum.TryParse<UserRole>(roleStr, out var roleEnum))
             {
                 userRoles.Add(roleEnum);
             }
         }
 
-        List<Core.Entity.UserRole>? requiredRoles = null;
-        bool isAdmin = userRoles.Contains(Core.Entity.UserRole.ADMIN);
-        bool isLecturer = userRoles.Contains(Core.Entity.UserRole.LECTURER);
+        List<UserRole>? requiredRoles = null;
+        bool isAdmin = userRoles.Contains(UserRole.ADMIN);
+        bool isLecturer = userRoles.Contains(UserRole.LECTURER);
 
         if (!isAdmin && !isLecturer)
         {
-            requiredRoles = new List<Core.Entity.UserRole> { Core.Entity.UserRole.ADMIN, Core.Entity.UserRole.LECTURER };
+            requiredRoles = new List<UserRole> { UserRole.ADMIN, UserRole.LECTURER };
         }
 
         var list = await _userService.SearchBySurnameAsync(name, 10, requiredRoles);

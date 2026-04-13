@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(MailboxDbContext))]
-    [Migration("20260109191529_messagerecipient")]
-    partial class messagerecipient
+    [Migration("20260413170624_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -53,6 +53,9 @@ namespace Infrastructure.Migrations
                     b.Property<string>("Body")
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsDraft")
                         .HasColumnType("boolean");
 
@@ -73,6 +76,42 @@ namespace Infrastructure.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("Core.Entity.MessageAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("MessageId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId");
+
+                    b.ToTable("MessageAttachments");
+                });
+
             modelBuilder.Entity("Core.Entity.MessageRecipient", b =>
                 {
                     b.Property<int>("Id")
@@ -81,8 +120,14 @@ namespace Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("MessageId")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("RecipientEntityId")
                         .HasColumnType("integer");
@@ -144,6 +189,9 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("NewEmail")
+                        .HasColumnType("text");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasColumnType("text");
@@ -157,8 +205,6 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
-
                     b.ToTable("UserActivationTokens");
                 });
 
@@ -169,6 +215,9 @@ namespace Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("PasswordChangedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -183,6 +232,27 @@ namespace Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("UserCredentials");
+                });
+
+            modelBuilder.Entity("Core.Entity.UserRoleAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserRoleAssignments");
                 });
 
             modelBuilder.Entity("GroupUser", b =>
@@ -211,6 +281,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("Core.Entity.MessageAttachment", b =>
+                {
+                    b.HasOne("Core.Entity.Message", "Message")
+                        .WithMany("Attachments")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+                });
+
             modelBuilder.Entity("Core.Entity.MessageRecipient", b =>
                 {
                     b.HasOne("Core.Entity.Message", "Message")
@@ -226,22 +307,22 @@ namespace Infrastructure.Migrations
                     b.Navigation("Message");
                 });
 
-            modelBuilder.Entity("Core.Entity.UserActivationToken", b =>
+            modelBuilder.Entity("Core.Entity.UserCredential", b =>
                 {
                     b.HasOne("Core.Entity.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
+                        .WithOne("UserCredential")
+                        .HasForeignKey("Core.Entity.UserCredential", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Core.Entity.UserCredential", b =>
+            modelBuilder.Entity("Core.Entity.UserRoleAssignment", b =>
                 {
                     b.HasOne("Core.Entity.User", "User")
-                        .WithOne("UserCredential")
-                        .HasForeignKey("Core.Entity.UserCredential", "UserId")
+                        .WithMany("Roles")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -265,12 +346,16 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Core.Entity.Message", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("Recipients");
                 });
 
             modelBuilder.Entity("Core.Entity.User", b =>
                 {
                     b.Navigation("ReceivedMessages");
+
+                    b.Navigation("Roles");
 
                     b.Navigation("SentMessages");
 

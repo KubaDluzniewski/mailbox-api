@@ -3,6 +3,7 @@ using Application.Interfaces;
 using Application.Services;
 using Core.Entity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
@@ -15,12 +16,13 @@ public class MessageServiceTests
     private readonly Mock<IEmailService> _emailService = new();
     private readonly Mock<IGroupRepository> _groupRepo = new();
     private readonly Mock<IConfiguration> _configuration = new();
+    private readonly Mock<ILogger<MessageService>> _logger = new();
     private readonly MessageService _sut;
 
     public MessageServiceTests()
     {
         _configuration.Setup(c => c["App:FrontendUrl"]).Returns("http://localhost:5173");
-        _sut = new MessageService(_messageRepo.Object, _userService.Object, _emailService.Object, _groupRepo.Object, _configuration.Object);
+        _sut = new MessageService(_messageRepo.Object, _userService.Object, _emailService.Object, _groupRepo.Object, _configuration.Object, _logger.Object);
     }
 
     [Fact]
@@ -164,6 +166,42 @@ public class MessageServiceTests
         Assert.NotNull(savedMessage);
         Assert.Single(savedMessage!.Attachments);
         Assert.Equal("x.txt", savedMessage.Attachments.First().FileName);
+    }
+
+    [Fact]
+    public async Task SendMessages_ReturnsTrue_AndPersistsMessage_WhenNotificationEmailFails()
+    {
+        var sender = CreateUser(1, email: "sender@mail.com");
+        var directUser = CreateUser(2, email: "u2@mail.com");
+
+        var dto = new SendMessageDto
+        {
+            Subject = "Temat",
+            Body = "Tresc",
+            Recipients = new List<RecipientDto> { new() { Id = 2, Type = "user", DisplayName = "User 2" } }
+        };
+
+        _userService.Setup(s => s.GetByIdAsync(1)).ReturnsAsync(sender);
+        _userService.Setup(s => s.GetByIdsAsync(It.IsAny<IEnumerable<int>>()))
+            .ReturnsAsync(new List<User> { directUser });
+        _emailService.Setup(e => e.SendEmailAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SMTP down"));
+
+        Message? savedMessage = null;
+        _messageRepo.Setup(r => r.AddAsync(It.IsAny<Message>()))
+            .Callback<Message>(m => savedMessage = m)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.SendMessages(dto, 1, CancellationToken.None);
+
+        Assert.True(result);
+        Assert.NotNull(savedMessage);
+        _messageRepo.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
 
     [Fact]
