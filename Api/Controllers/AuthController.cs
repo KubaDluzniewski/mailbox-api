@@ -33,7 +33,6 @@ public class AuthController : ControllerBase
         {
             if (ex.Message == "Account is not active.")
             {
-                // Return consistent error structure
                 return StatusCode(403, new { message = "Account is not active." });
             }
             return Unauthorized();

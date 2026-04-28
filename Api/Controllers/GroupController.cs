@@ -27,66 +27,35 @@ public class GroupController : ControllerBase
         bool canAccess = rolesClaims.Any(r => r == "ADMIN" || r == "LECTURER");
 
         if (!canAccess)
-        {
             return Ok(new List<GroupDto>());
-        }
 
         var groups = await _groupService.GetSuggestionsAsync(name);
-        var groupDtos = _mapper.Map<List<GroupDto>>(groups);
-        return Ok(groupDtos);
+        return Ok(_mapper.Map<List<GroupDto>>(groups));
     }
 
     [Authorize(Roles = "ADMIN")]
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var groups = await _groupService.GetAllAsync();
-        var response = groups.Select(g => new GroupDetailDto
-        {
-            Id = g.Id,
-            Name = g.Name,
-            Members = _mapper.Map<List<UserDto>>(g.Users),
-            MemberCount = g.Users.Count
-        }).ToList();
-
-        return Ok(response);
+        var result = await _groupService.GetAllDetailAsync();
+        return Ok(result);
     }
 
     [Authorize(Roles = "ADMIN")]
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var group = await _groupService.GetByIdWithUsersAsync(id);
-        if (group == null)
-            return NotFound();
-
-        var response = new GroupDetailDto
-        {
-            Id = group.Id,
-            Name = group.Name,
-            Members = _mapper.Map<List<UserDto>>(group.Users),
-            MemberCount = group.Users.Count
-        };
-
-        return Ok(response);
+        var result = await _groupService.GetDetailByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(result);
     }
 
     [Authorize(Roles = "ADMIN")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateGroupDto dto)
     {
-        var group = await _groupService.UpdateAsync(id, dto.Name, dto.UserIds);
-        if (group == null)
-            return BadRequest("Failed to update group.");
-
-        var response = new GroupDetailDto
-        {
-            Id = group.Id,
-            Name = group.Name,
-            Members = _mapper.Map<List<UserDto>>(group.Users),
-            MemberCount = group.Users.Count
-        };
-
-        return Ok(response);
+        var result = await _groupService.UpdateDetailAsync(id, dto.Name, dto.UserIds);
+        if (result == null) return BadRequest("Failed to update group.");
+        return Ok(result);
     }
 }

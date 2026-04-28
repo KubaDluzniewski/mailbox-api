@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Application.Services;
+using AutoMapper;
 using Core.Entity;
 using Moq;
 using Xunit;
@@ -10,11 +11,12 @@ public class GroupServiceTests
 {
     private readonly Mock<IGroupRepository> _groupRepo = new();
     private readonly Mock<IUserService> _userService = new();
+    private readonly Mock<IMapper> _mapper = new();
     private readonly GroupService _sut;
 
     public GroupServiceTests()
     {
-        _sut = new GroupService(_groupRepo.Object, _userService.Object);
+        _sut = new GroupService(_groupRepo.Object, _userService.Object, _mapper.Object);
     }
 
     [Fact]

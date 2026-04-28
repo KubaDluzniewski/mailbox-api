@@ -1,12 +1,19 @@
-using System.Collections.Generic;
+namespace Application.DTOs;
 
-namespace Application.DTOs
+/// <summary>
+///     Informacje o grupie z listą członków.
+/// </summary>
+public class GroupInfoDto
 {
-    public class GroupInfoDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public List<UserDto> Members { get; set; }
-        public int MemberCount { get; set; }
-    }
+    /// <summary>Id grupy.</summary>
+    public int Id { get; set; }
+
+    /// <summary>Nazwa grupy.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Lista użytkowników należących do grupy.</summary>
+    public List<UserDto> Members { get; set; } = new();
+
+    /// <summary>Liczba członków grupy.</summary>
+    public int MemberCount { get; set; }
 }

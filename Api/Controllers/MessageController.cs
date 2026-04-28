@@ -1,11 +1,7 @@
-using Application.DTOs;
 using Application.Interfaces;
-using Core.Entity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using System.Text.Json;
-using AutoMapper;
 
 namespace Api.Controllers;
 
@@ -14,22 +10,10 @@ namespace Api.Controllers;
 public class MessageController : ControllerBase
 {
     private readonly IMessageService _messageService;
-    private readonly IEmailService _sesEmailService;
-    private readonly IUserService _userService;
-    private readonly IMapper _mapper;
-    private readonly IGroupRepository _groupRepository;
 
-    public MessageController(IMessageService messageService,
-                             IEmailService sesEmailService,
-                             IUserService userService,
-                             IMapper mapper,
-                             IGroupRepository groupRepository)
+    public MessageController(IMessageService messageService)
     {
         _messageService = messageService;
-        _sesEmailService = sesEmailService;
-        _userService = userService;
-        _mapper = mapper;
-        _groupRepository = groupRepository;
     }
 
     [Authorize]
@@ -43,38 +27,19 @@ public class MessageController : ControllerBase
         IFormFileCollection? attachments,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(subject)) return BadRequest("Brak tematu.");
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
 
-        List<RecipientDto> recipientList;
         try
         {
-            recipientList = string.IsNullOrWhiteSpace(recipients)
-                ? []
-                : JsonSerializer.Deserialize<List<RecipientDto>>(recipients, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            var response = await _messageService.SendFromFormAsync(subject, body, recipients, id, attachments, userId.Value, cancellationToken);
+            if (!response) return StatusCode(500, "Nie udało się wysłać wiadomości");
+            return Ok();
         }
-        catch
+        catch (ArgumentException ex)
         {
-            return BadRequest("Nieprawidłowy format odbiorców.");
+            return BadRequest(ex.Message);
         }
-
-        if (recipientList.Count == 0) return BadRequest("Brak odbiorców.");
-
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!int.TryParse(userIdStr, out var senderId)) return Unauthorized();
-
-        var dto = new SendMessageDto
-        {
-            Id = id,
-            Subject = subject,
-            Body = body ?? string.Empty,
-            Recipients = recipientList
-        };
-
-        var attachmentDtos = await ReadAttachmentsAsync(attachments);
-
-        var response = await _messageService.SendMessages(dto, senderId, cancellationToken, attachmentDtos);
-        if (!response) return StatusCode(500, "Nie udało się wysłać wiadomości");
-        return Ok();
     }
 
     [Authorize]
@@ -84,38 +49,7 @@ public class MessageController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
-        var list = await _messageService.GetMessagesForUserAsync(userId.Value);
-
-        var result = list.Select(m => {
-            var currentUserRecipient = m.Recipients.FirstOrDefault(r => r.RecipientEntityId == userId.Value && r.RecipientType == RecipientType.User);
-
-            return new {
-                m.Id,
-                m.Subject,
-                m.Body,
-                Sender = new { m.Sender?.Id, m.Sender?.Name, m.Sender?.Surname, m.Sender?.Email },
-                m.SentDate,
-                CreatedAt = m.SentDate,
-                Recipients = new[] {
-                    new RecipientDto {
-                        Id = m.Sender?.Id ?? 0,
-                        Type = "user",
-                        DisplayName = m.Sender?.FullName() ?? "Unknown",
-                        Subtitle = m.Sender?.Email ?? ""
-                    }
-                }.ToList(),
-                IsRead = currentUserRecipient?.IsRead ?? false,
-                ReadAt = currentUserRecipient?.ReadAt,
-                Attachments = m.Attachments.Select(a => new AttachmentDto
-                {
-                    Id = a.Id,
-                    FileName = a.FileName,
-                    ContentType = a.ContentType,
-                    FileSize = a.FileSize
-                }).ToList()
-            };
-        }).ToList();
-
+        var result = await _messageService.GetInboxViewAsync(userId.Value);
         return Ok(result);
     }
 
@@ -126,37 +60,7 @@ public class MessageController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
-        var list = await _messageService.GetMessagesSentByUserAsync(userId.Value);
-
-        var userIds = list.SelectMany(m => m.Recipients.Select(r => r.RecipientEntityId)).Distinct().ToList();
-        var users = await _userService.GetByIdsAsync(userIds);
-
-        var result = list.Select(m => new {
-            m.Id,
-            m.Subject,
-            m.Body,
-            Sender = new { m.Sender?.Id, m.Sender?.Name, m.Sender?.Surname, m.Sender?.Email },
-            m.SentDate,
-            Recipients = m.Recipients.Select(r => {
-                var user = users.FirstOrDefault(u => u.Id == r.RecipientEntityId);
-                return new RecipientDto {
-                    Id = r.RecipientEntityId,
-                    Type = "user",
-                    DisplayName = user?.FullName() ?? "Unknown",
-                    Subtitle = user?.Email ?? "",
-                    IsRead = r.IsRead,
-                    ReadAt = r.ReadAt
-                };
-            }).ToList(),
-            Attachments = m.Attachments.Select(a => new AttachmentDto
-            {
-                Id = a.Id,
-                FileName = a.FileName,
-                ContentType = a.ContentType,
-                FileSize = a.FileSize
-            }).ToList()
-        }).ToList();
-
+        var result = await _messageService.GetSentViewAsync(userId.Value);
         return Ok(result);
     }
 
@@ -173,46 +77,15 @@ public class MessageController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
-        List<RecipientDto> recipientList;
         try
         {
-            recipientList = string.IsNullOrWhiteSpace(recipients)
-                ? []
-                : JsonSerializer.Deserialize<List<RecipientDto>>(recipients, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            var response = await _messageService.SaveDraftFromFormAsync(subject, body, recipients, attachments, userId.Value, cancellationToken);
+            return Ok(response);
         }
-        catch
+        catch (ArgumentException ex)
         {
-            return BadRequest("Nieprawidłowy format odbiorców.");
+            return BadRequest(ex.Message);
         }
-
-        var dto = new SendMessageDto
-        {
-            Subject = subject ?? string.Empty,
-            Body = body ?? string.Empty,
-            Recipients = recipientList
-        };
-
-        var attachmentDtos = await ReadAttachmentsAsync(attachments);
-
-        var draft = await _messageService.SaveDraftAsync(dto, userId.Value, cancellationToken, attachmentDtos);
-
-        var response = new
-        {
-            draft.Id,
-            draft.Subject,
-            draft.Body,
-            draft.CreatedAt,
-            Recipients = dto.Recipients,
-            Attachments = draft.Attachments.Select(a => new AttachmentDto
-            {
-                Id = a.Id,
-                FileName = a.FileName,
-                ContentType = a.ContentType,
-                FileSize = a.FileSize
-            }).ToList()
-        };
-
-        return Ok(response);
     }
 
     [Authorize]
@@ -222,39 +95,19 @@ public class MessageController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
-        var list = await _messageService.GetDraftsForUserAsync(userId.Value);
+        var result = await _messageService.GetDraftsViewAsync(userId.Value);
+        return Ok(result);
+    }
 
-        var userIds = list.SelectMany(m => m.Recipients.Where(r => r.RecipientType == RecipientType.User).Select(r => r.RecipientEntityId)).Distinct().ToList();
-        var groupIds = list.SelectMany(m => m.Recipients.Where(r => r.RecipientType == RecipientType.Group).Select(r => r.RecipientEntityId)).Distinct().ToList();
+    [Authorize]
+    [HttpGet("draft/{id}")]
+    public async Task<IActionResult> GetDraft(int id)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
 
-        var users = await _userService.GetByIdsAsync(userIds);
-        var groups = await _groupRepository.GetByIdsAsync(groupIds);
-
-        var result = list.Select(m => new {
-            m.Id,
-            m.Subject,
-            m.Body,
-            m.CreatedAt,
-            Recipients = m.Recipients.Select(r => {
-                if (r.RecipientType == RecipientType.User)
-                {
-                    var user = users.FirstOrDefault(u => u.Id == r.RecipientEntityId);
-                    return new RecipientDto { Id = r.RecipientEntityId, Type = "user", DisplayName = user?.FullName() ?? "Unknown", Subtitle = user?.Email ?? "" };
-                }
-                else // Group
-                {
-                    var group = groups.FirstOrDefault(g => g.Id == r.RecipientEntityId);
-                    return new RecipientDto { Id = r.RecipientEntityId, Type = "group", DisplayName = group?.Name ?? "Unknown", Subtitle = "Group" };
-                }
-            }).ToList(),
-            Attachments = m.Attachments.Select(a => new AttachmentDto
-            {
-                Id = a.Id,
-                FileName = a.FileName,
-                ContentType = a.ContentType,
-                FileSize = a.FileSize
-            }).ToList()
-        }).ToList();
+        var result = await _messageService.GetDraftViewAsync(id, userId.Value);
+        if (result == null) return NotFound();
 
         return Ok(result);
     }
@@ -265,7 +118,20 @@ public class MessageController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
+
         var result = await _messageService.DeleteDraftAsync(id, userId.Value);
+        if (!result) return NotFound();
+        return Ok();
+    }
+
+    [Authorize]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteMessage(int id)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var result = await _messageService.DeleteSentMessageAsync(id, userId.Value);
         if (!result) return NotFound();
         return Ok();
     }
@@ -284,46 +150,16 @@ public class MessageController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
-        List<RecipientDto> recipientList;
         try
         {
-            recipientList = string.IsNullOrWhiteSpace(recipients)
-                ? []
-                : JsonSerializer.Deserialize<List<RecipientDto>>(recipients, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            var response = await _messageService.UpdateDraftFromFormAsync(id, subject, body, recipients, attachments, userId.Value, cancellationToken);
+            if (response == null) return NotFound();
+            return Ok(response);
         }
-        catch
+        catch (ArgumentException ex)
         {
-            return BadRequest("Nieprawidłowy format odbiorców.");
+            return BadRequest(ex.Message);
         }
-
-        var dto = new SendMessageDto
-        {
-            Subject = subject ?? string.Empty,
-            Body = body ?? string.Empty,
-            Recipients = recipientList
-        };
-
-        var attachmentDtos = await ReadAttachmentsAsync(attachments);
-
-        var draft = await _messageService.UpdateDraftAsync(id, dto, userId.Value, cancellationToken, attachmentDtos.Count > 0 ? attachmentDtos : null);
-        if (draft == null) return NotFound();
-
-        var response = new
-        {
-            draft.Id,
-            draft.Subject,
-            draft.Body,
-            Recipients = dto.Recipients,
-            Attachments = draft.Attachments.Select(a => new AttachmentDto
-            {
-                Id = a.Id,
-                FileName = a.FileName,
-                ContentType = a.ContentType,
-                FileSize = a.FileSize
-            }).ToList()
-        };
-
-        return Ok(response);
     }
 
     [Authorize]
@@ -380,38 +216,7 @@ public class MessageController : ControllerBase
     [HttpGet("admin/all")]
     public async Task<IActionResult> GetAllMessages()
     {
-        var list = await _messageService.GetAllMessagesAsync();
-
-        var userIds = list.SelectMany(m => m.Recipients.Select(r => r.RecipientEntityId)).Distinct().ToList();
-        var users = await _userService.GetByIdsAsync(userIds);
-
-        var result = list.Select(m => new {
-            m.Id,
-            m.Subject,
-            m.Body,
-            Sender = new { m.Sender?.Id, m.Sender?.Name, m.Sender?.Surname, m.Sender?.Email },
-            m.SentDate,
-            RecipientCount = m.Recipients.Count,
-            Recipients = m.Recipients.Select(r => {
-                var user = users.FirstOrDefault(u => u.Id == r.RecipientEntityId);
-                return new RecipientDto {
-                    Id = r.RecipientEntityId,
-                    Type = "user",
-                    DisplayName = user?.FullName() ?? "Unknown",
-                    Subtitle = user?.Email ?? "",
-                    IsRead = r.IsRead,
-                    ReadAt = r.ReadAt
-                };
-            }).ToList(),
-            Attachments = m.Attachments.Select(a => new AttachmentDto
-            {
-                Id = a.Id,
-                FileName = a.FileName,
-                ContentType = a.ContentType,
-                FileSize = a.FileSize
-            }).ToList()
-        }).ToList();
-
+        var result = await _messageService.GetAdminMessagesViewAsync();
         return Ok(result);
     }
 
@@ -422,40 +227,4 @@ public class MessageController : ControllerBase
             return userId;
         return null;
     }
-
-    private static async Task<List<CreateAttachmentDto>> ReadAttachmentsAsync(IFormFileCollection? files)
-    {
-        if (files == null || files.Count == 0)
-            return [];
-
-        const long maxFileSizeBytes = 10 * 1024 * 1024; // 10 MB per file
-
-        var result = new List<CreateAttachmentDto>();
-        foreach (var file in files)
-        {
-            if (file.Length == 0) continue;
-            if (file.Length > maxFileSizeBytes) continue;
-
-            using var ms = new MemoryStream();
-            await file.CopyToAsync(ms);
-
-            result.Add(new CreateAttachmentDto
-            {
-                FileName = SanitizeFileName(file.FileName),
-                ContentType = file.ContentType,
-                FileSize = file.Length,
-                Data = ms.ToArray()
-            });
-        }
-        return result;
-    }
-
-    private static string SanitizeFileName(string fileName)
-    {
-        var name = Path.GetFileName(fileName);
-        foreach (var invalid in Path.GetInvalidFileNameChars())
-            name = name.Replace(invalid, '_');
-        return name;
-    }
 }
-

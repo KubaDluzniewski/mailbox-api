@@ -1,25 +1,44 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: mailbox_db
     restart: always
     environment:
-      POSTGRES_USER: mailbox
-      POSTGRES_PASSWORD: mailbox123
-      POSTGRES_DB: mailboxdb
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - mailbox_net
 
-  mailpit:
-    image: axllent/mailpit
+  api:
+    build: .
+    container_name: mailbox_api
     restart: always
-    ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI
     environment:
-      MP_MAX_MESSAGES: 500
-      MP_UI_AUTH_FILE: ""
+      - ConnectionStrings__DefaultConnection=Host=db;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Smtp__Host=mailpit
+      - Smtp__Port=1025
+    depends_on:
+      - db
+    networks:
+      - mailbox_net
+
+  front:
+    build: ../mailbox 
+    container_name: mailbox_front
+    ports:
+      - "80:80"
+    restart: always
+    networks:
+      - mailbox_net
+
+networks:
+  mailbox_net:
+    driver: bridge
 
 volumes:
   db_data:

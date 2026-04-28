@@ -1,6 +1,6 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Application.DTOs;
 using Application.Interfaces;
+using AutoMapper;
 using Core.Entity;
 
 namespace Application.Services
@@ -9,43 +9,61 @@ namespace Application.Services
     {
         private readonly IGroupRepository _groupRepository;
         private readonly IUserService _userService;
+        private readonly IMapper _mapper;
 
-        public GroupService(IGroupRepository groupRepository, IUserService userService)
+        public GroupService(IGroupRepository groupRepository, IUserService userService, IMapper mapper)
         {
             _groupRepository = groupRepository;
             _userService = userService;
+            _mapper = mapper;
         }
 
+        /// <inheritdoc/>
         public Task<List<User>> GetUsersFromGroup(int id)
-        {
-            return _groupRepository.GetAllUsersAsyncByGroup(id);
-        }
+            => _groupRepository.GetAllUsersAsyncByGroup(id);
 
+        /// <inheritdoc/>
         public Task<List<Group>> SearchAsync(string term, int limit = 10)
-        {
-            return _groupRepository.SearchAsync(term, limit);
-        }
+            => _groupRepository.SearchAsync(term, limit);
 
+        /// <inheritdoc/>
         public Task<Group?> GetByIdAsync(int id)
-        {
-            return _groupRepository.GetByIdAsync(id);
-        }
+            => _groupRepository.GetByIdAsync(id);
 
+        /// <inheritdoc/>
         public Task<List<Group>> GetSuggestionsAsync(string term, int limit = 10)
-        {
-            return _groupRepository.SearchAsync(term, limit);
-        }
+            => _groupRepository.SearchAsync(term, limit);
 
+        /// <inheritdoc/>
         public Task<List<Group>> GetAllAsync()
-        {
-            return _groupRepository.GetAllWithUsersAsync();
-        }
+            => _groupRepository.GetAllWithUsersAsync();
 
+        /// <inheritdoc/>
         public Task<Group?> GetByIdWithUsersAsync(int id)
+            => _groupRepository.GetByIdWithUsersAsync(id);
+
+        /// <inheritdoc/>
+        public async Task<List<GroupDetailDto>> GetAllDetailAsync()
         {
-            return _groupRepository.GetByIdWithUsersAsync(id);
+            var groups = await _groupRepository.GetAllWithUsersAsync();
+            return groups.Select(MapToDetail).ToList();
         }
 
+        /// <inheritdoc/>
+        public async Task<GroupDetailDto?> GetDetailByIdAsync(int id)
+        {
+            var group = await _groupRepository.GetByIdWithUsersAsync(id);
+            return group == null ? null : MapToDetail(group);
+        }
+
+        /// <inheritdoc/>
+        public async Task<GroupDetailDto?> UpdateDetailAsync(int id, string name, List<int> userIds)
+        {
+            var group = await UpdateAsync(id, name, userIds);
+            return group == null ? null : MapToDetail(group);
+        }
+
+        /// <inheritdoc/>
         public async Task<Group?> UpdateAsync(int id, string name, List<int> userIds)
         {
             var group = await _groupRepository.GetByIdWithUsersAsync(id);
@@ -69,5 +87,13 @@ namespace Application.Services
             await _groupRepository.SaveChangesAsync();
             return group;
         }
+
+        private GroupDetailDto MapToDetail(Group group) => new()
+        {
+            Id = group.Id,
+            Name = group.Name,
+            Members = _mapper.Map<List<UserDto>>(group.Users),
+            MemberCount = group.Users.Count
+        };
     }
 }

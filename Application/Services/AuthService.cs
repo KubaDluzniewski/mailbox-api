@@ -47,8 +47,7 @@ public class AuthService : IAuthService
         _frontendUrl = configuration["App:FrontendUrl"] ?? "http://localhost:5173";
     }
 
-
-
+    /// <inheritdoc/>
     public async Task<string?> LoginAsync(string email, string password)
     {
         var user = await _userService.GetByEmailWithRolesAsync(email);
@@ -61,28 +60,30 @@ public class AuthService : IAuthService
         if (!passwordValid) return null;
 
         if (!user.IsActive)
-        {
             throw new UnauthorizedAccessException("Account is not active.");
-        }
 
         var token = GenerateJwtToken(user);
         Console.WriteLine($"Generated token for user: {user.Id}, {user.Name}, {user.Surname}, {user.Email}, {user.IsActive}");
         return token;
     }
 
+    /// <inheritdoc/>
     public Task LogoutAsync() => Task.CompletedTask;
 
+    /// <inheritdoc/>
     public Task<UserDto?> GetCurrentUserAsync()
     {
         throw new NotImplementedException();
     }
 
+    /// <inheritdoc/>
     public async Task<bool> IsActiveAsync(string email)
     {
         var user = await _userService.GetByEmailAsync(email);
         return user?.IsActive ?? false;
     }
 
+    /// <inheritdoc/>
     public async Task<bool> ActivateAsync(string email)
     {
         var user = await _userService.GetByEmailAsync(email);
@@ -111,6 +112,7 @@ public class AuthService : IAuthService
         return true;
     }
 
+    /// <inheritdoc/>
     public async Task<bool> InitiateEmailChangeAsync(int userId, string newEmail)
     {
         var user = await _userService.GetByIdAsync(userId);
@@ -119,17 +121,13 @@ public class AuthService : IAuthService
         if (user.Email == newEmail)
         {
             if (!user.IsActive)
-            {
                 return await ActivateAsync(newEmail);
-            }
             throw new Exception("This is already your email address.");
         }
 
         var existingUser = await _userService.GetByEmailAsync(newEmail);
         if (existingUser != null)
-        {
             throw new Exception("Email is already taken.");
-        }
 
         var oldTokens = await _userActivationTokenRepository.GetByUserIdAsync(userId, "email_change");
         foreach (var t in oldTokens)
@@ -155,6 +153,7 @@ public class AuthService : IAuthService
         return true;
     }
 
+    /// <inheritdoc/>
     public async Task<string?> ConfirmAsync(string email, string token)
     {
         var tokenEntity = await _userActivationTokenRepository.GetByTokenAsync(token);
@@ -189,6 +188,7 @@ public class AuthService : IAuthService
         return confirmationType;
     }
 
+    /// <inheritdoc/>
     public async Task<string?> ForgotPasswordAsync(string email)
     {
         var user = await _userService.GetByEmailAsync(email);
@@ -234,39 +234,46 @@ public class AuthService : IAuthService
         return resetLink;
     }
 
+    /// <inheritdoc/>
     public async Task<bool> ResetPasswordAsync(string email, string token, string newPassword)
     {
         Console.WriteLine($"[ResetPassword] Attempting reset for email: {email}, token: {token}");
         var tokenEntity = await _userActivationTokenRepository.GetByTokenAsync(token);
 
-        if (tokenEntity == null) {
+        if (tokenEntity == null)
+        {
             Console.WriteLine($"[ResetPassword] Token not found: {token}");
             return false;
         }
 
-        if (tokenEntity.ExpiresAt < DateTime.UtcNow) {
+        if (tokenEntity.ExpiresAt < DateTime.UtcNow)
+        {
             Console.WriteLine($"[ResetPassword] Token expired. Expires: {tokenEntity.ExpiresAt}, Now: {DateTime.UtcNow}");
             return false;
         }
 
-        if (tokenEntity.Type != "password_reset") {
-             Console.WriteLine($"[ResetPassword] Invalid token type: {tokenEntity.Type}");
-             return false;
+        if (tokenEntity.Type != "password_reset")
+        {
+            Console.WriteLine($"[ResetPassword] Invalid token type: {tokenEntity.Type}");
+            return false;
         }
 
         var user = await _userService.GetByIdAsync(tokenEntity.UserId);
-        if (user == null) {
+        if (user == null)
+        {
             Console.WriteLine($"[ResetPassword] User not found for ID: {tokenEntity.UserId}");
             return false;
         }
 
-        if (user.Email != email) {
+        if (user.Email != email)
+        {
             Console.WriteLine($"[ResetPassword] Email mismatch. TokenUser: {user.Email}, Request: {email}");
             return false;
         }
 
         var result = await _userService.SetPasswordAsync(user.Id, newPassword);
-        if (!result) {
+        if (!result)
+        {
             Console.WriteLine($"[ResetPassword] SetPasswordAsync failed.");
             return false;
         }
@@ -277,12 +284,13 @@ public class AuthService : IAuthService
         return true;
     }
 
+    /// <inheritdoc/>
     public async Task<bool> RegisterAsync(string name, string surname, string email, string password, string registrationCode)
     {
         if (string.IsNullOrWhiteSpace(_registrationSecret))
         {
-             Console.WriteLine("Registration secret is not configured on server.");
-             return false;
+            Console.WriteLine("Registration secret is not configured on server.");
+            return false;
         }
 
         if (registrationCode != _registrationSecret) return false;
@@ -299,6 +307,11 @@ public class AuthService : IAuthService
         return false;
     }
 
+    /// <summary>
+    ///     Generuje token JWT dla podanego użytkownika z jego rolami i danymi identyfikacyjnymi.
+    /// </summary>
+    /// <param name="user">Użytkownik dla którego generowany jest token.</param>
+    /// <returns>Podpisany token JWT jako string.</returns>
     private string GenerateJwtToken(User user)
     {
         var roles = user.Roles?.Select(r => r.Role.ToString()).ToList() ?? new List<string>();
@@ -317,9 +330,7 @@ public class AuthService : IAuthService
 
         // Add individual role claims for ASP.NET authorization
         foreach (var role in roles)
-        {
             claims.Add(new Claim(ClaimTypes.Role, role));
-        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKey!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

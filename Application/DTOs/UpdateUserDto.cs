@@ -3,32 +3,23 @@ using Core.Entity;
 namespace Application.DTOs;
 
 /// <summary>
-///     DTO do aktualizacji użytkownika
+///     Żądanie aktualizacji danych użytkownika przez administratora.
+///     Wszystkie pola są opcjonalne — null oznacza brak zmiany.
 /// </summary>
 public class UpdateUserDto
 {
-    /// <summary>
-    ///     Imię użytkownika
-    /// </summary>
+    /// <summary>Nowe imię użytkownika. Null = bez zmiany.</summary>
     public string? Name { get; set; }
 
-    /// <summary>
-    ///     Nazwisko użytkownika
-    /// </summary>
+    /// <summary>Nowe nazwisko użytkownika. Null = bez zmiany.</summary>
     public string? Surname { get; set; }
 
-    /// <summary>
-    ///     Email użytkownika
-    /// </summary>
+    /// <summary>Nowy adres e-mail użytkownika (musi być unikalny). Null = bez zmiany.</summary>
     public string? Email { get; set; }
 
-    /// <summary>
-    ///     Role użytkownika
-    /// </summary>
+    /// <summary>Nowa lista ról użytkownika (zastępuje poprzednią). Null = bez zmiany.</summary>
     public List<UserRole>? Roles { get; set; }
 
-    /// <summary>
-    ///     Czy użytkownik jest aktywny
-    /// </summary>
+    /// <summary>Nowy status aktywności konta. Null = bez zmiany.</summary>
     public bool? IsActive { get; set; }
 }

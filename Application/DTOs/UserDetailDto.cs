@@ -1,42 +1,29 @@
 namespace Application.DTOs;
 
 /// <summary>
-///     DTO szczegółowych informacji o użytkowniku
+///     Szczegółowe informacje o użytkowniku zwracane przez endpointy administracyjne
+///     i endpoint <c>GET /api/users/me</c>.
 /// </summary>
 public class UserDetailDto
 {
-    /// <summary>
-    ///     Id
-    /// </summary>
+    /// <summary>Id użytkownika.</summary>
     public int Id { get; set; }
 
-    /// <summary>
-    ///     Email użytkownika
-    /// </summary>
+    /// <summary>Adres e-mail użytkownika.</summary>
     public string Email { get; set; } = string.Empty;
 
-    /// <summary>
-    ///     Imię użytkownika
-    /// </summary>
+    /// <summary>Imię użytkownika.</summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>
-    ///     Nazwisko użytkownika
-    /// </summary>
+    /// <summary>Nazwisko użytkownika.</summary>
     public string Surname { get; set; } = string.Empty;
 
-    /// <summary>
-    ///     Role użytkownika
-    /// </summary>
+    /// <summary>Lista ról użytkownika jako ciągi tekstowe, np. <c>"ADMIN"</c>, <c>"LECTURER"</c>.</summary>
     public List<string> Roles { get; set; } = new();
 
-    /// <summary>
-    ///     Czy użytkownik jest aktywny
-    /// </summary>
+    /// <summary>Czy konto jest aktywne.</summary>
     public bool IsActive { get; set; }
 
-    /// <summary>
-    ///     Data utworzenia konta
-    /// </summary>
+    /// <summary>Data i czas utworzenia konta (UTC).</summary>
     public DateTime CreatedAt { get; set; }
 }
